@@ -28,6 +28,7 @@ backend/storage/
 backend/storage/temp/
 backend/storage/bundles/
 backend/storage/app.db
+backend/.env
 
 # Frontend Node Modules & Dist Build Outputs
 frontend/node_modules/
