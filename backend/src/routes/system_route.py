@@ -1,23 +1,27 @@
-import sys
+import asyncio
 import os
 import subprocess
-import asyncio
+import sys
+
 from fastapi import APIRouter
-from src.logger import log_info, log_error
+from src.logger import log_error, log_info
 
 router = APIRouter(prefix="/api", tags=["System"])
+
 
 @router.post("/restart")
 async def restart_backend():
     """Trigger clean backend process reboot."""
     log_info("🔄 Backend restart sequence triggered by frontend.")
-    
+
     async def do_restart():
         await asyncio.sleep(0.8)
         try:
             executable = sys.executable
             args = [executable] + sys.argv
-            log_info("🚀 Launching new backend process and terminating current instance...")
+            log_info(
+                "🚀 Launching new backend process and terminating current instance..."
+            )
             subprocess.Popen(args, close_fds=True)
         except Exception as e:
             log_error("Failed to spawn reboot process", e)
