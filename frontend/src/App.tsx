@@ -1,8 +1,10 @@
 import axios from "axios";
 import { clsx } from "clsx";
 import { Toast } from "primereact/toast";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useStartupSSEStore } from "./context/SSEStore";
+import { useAuthStore } from "./context/authStore";
+import Login from "./pages/Login";
 import Header from "./pages/components/Header";
 import SocketHandler from "./pages/components/SocketHandler";
 import Home from "./pages/Home";
@@ -10,11 +12,16 @@ import Home from "./pages/Home";
 function App() {
   const toastMain = useRef<Toast>(null);
   const [isRestarting, setIsRestarting] = useState(false);
+  const { token, user, fetchMe } = useAuthStore();
 
   const startupp = useStartupSSEStore(
     (state) => state.sse?.["startupp"]?.["startupp"],
   );
   const isLoading = startupp?.typee;
+
+  useEffect(() => {
+    fetchMe();
+  }, [fetchMe]);
 
   const handleBackendRestart = async () => {
     setIsRestarting(true);
@@ -31,6 +38,8 @@ function App() {
 
   return (
     <>
+      <Login />
+
       {/* Full screen blocking loading spinner for initial connect OR live restart processing */}
       {(isLoading === "ongoing" || isRestarting) && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-[#1e1e24] text-white">
@@ -83,7 +92,7 @@ function App() {
       <div
         className={clsx(
           "transition-opacity duration-400 ease-in-out",
-          isLoading !== "success" || isRestarting
+          isLoading !== "success" || isRestarting || !token || !user
             ? "pointer-events-none opacity-0"
             : "opacity-100",
         )}

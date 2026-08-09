@@ -18,6 +18,7 @@ export const VideoS = z.object({
   downloadStatus: z.enum([
     "queued",
     "downloading",
+    "generating_sprites",
     "paused",
     "completed",
     "failed",
@@ -38,11 +39,11 @@ export type VideoT = z.infer<typeof VideoS>;
 export const VideoProgressS = z.object({
   id: z.string(),
   videoId: z.string(),
-  eta: z.number(),
+  eta: z.union([z.string(), z.number()]),
   percent: z.number(),
-  speed: z.number(),
-  downloadedSize: z.number(),
-  totalSize: z.number(),
+  speed: z.union([z.string(), z.number()]),
+  downloadedSize: z.union([z.string(), z.number()]),
+  totalSize: z.union([z.string(), z.number()]),
 });
 
 export type VideoProgressT = z.infer<typeof VideoProgressS>;

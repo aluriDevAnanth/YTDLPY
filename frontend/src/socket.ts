@@ -6,4 +6,8 @@ export const socket: Socket = io(URL, {
   transports: ["websocket"],
   reconnectionAttempts: 5,
   reconnectionDelay: 1000,
+  autoConnect: false,
+  auth: (cb) => {
+    cb({ token: localStorage.getItem("token") });
+  },
 });
