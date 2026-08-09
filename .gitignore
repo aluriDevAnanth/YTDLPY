@@ -1,0 +1,38 @@
+# Project Specification File (User Request)
+project.md
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE & Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python & Environment Exclusions
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.pytest_cache/
+*.log
+
+# Storage & Temporary Media Directories
+backend/storage/
+backend/storage/temp/
+backend/storage/bundles/
+backend/storage/app.db
+
+# Frontend Node Modules & Dist Build Outputs
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*

@@ -1,217 +1,57 @@
 import asyncio
-import os
-import sys
-import time
 from contextlib import asynccontextmanager
-from http import HTTPStatus
-from pathlib import Path
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+import socketio
+import uvicorn
 
-import aiohttp_cors
-import src.req
-from aiohttp import web
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
-from src.db import FileDB, VideoDB, get_session, init_db
-from src.DownloadStarter import download_starter
-from src.logger import get_logger
-from src.schemas import Notify, Startup, TriStatus
-from src.SioEmitter import SioEmitter
-from src.sockets import client_set, sio
-from src.video_route import video_router
-from watchfiles import DefaultFilter, arun_process
+from src.db import init_db
+from src.ffmpeg_manager import ensure_ffmpeg_installed
+from src.VideoDownloader import resume_uncompleted_downloads
+from src.sio import sio
+from src.logger import log_info, log_success
+from src.routes.auth_route import router as auth_router
+from src.routes.admin_route import router as admin_router
+from src.routes.video_route import router as video_router
+from src.routes.files_route import router as files_router
+from src.routes.system_route import router as system_router
 
-logger = get_logger("backend.main")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    log_success("Launching YTDLP-PY-GUI Backend Services...")
+    # Initialize SQLite database and bootstrap default Admin account
+    await init_db()
+    # Check/download FFmpeg asynchronously
+    asyncio.create_task(ensure_ffmpeg_installed())
+    # Resume interrupted downloads automatically on server boot
+    asyncio.create_task(resume_uncompleted_downloads())
+    yield
+    log_info("Shutting down backend services...")
 
-app = web.Application()
-sio.attach(app)
-
-
-@sio.event
-async def connect(sid, environ, auth):
-    logger.info("Client Connected: %s", sid)
-    client_set.add(sid)
-    await SioEmitter.notify(
-        Notify(
-            severity="success",
-            summary="Success",
-            detail="Connected to SIO",
-            extraData={},
-        )
-    )
-    await src.req.ensure_ffmpeg_setup(sid)
-
-
-@sio.event
-async def disconnect(sid):
-    logger.info("Client disconnected: %s", sid)
-    client_set.discard(sid)
-
-
-async def index(req):
-    return web.json_response({111: 111})
-
-
-VIDEO_EXTENSIONS = {".mp4", ".mkv", ".avi", ".mov", ".webm"}
-
-
-async def serve_file(request: web.Request):
-    file_id = request.match_info.get("fileId")
-    if not file_id:
-        return web.json_response(
-            {"error": "File ID not provided."}, status=HTTPStatus.BAD_REQUEST
-        )
-
-    video_obj = None
-    file_path = None
-
-    try:
-        with get_session() as session:
-            stmt = select(FileDB).where(FileDB.id == file_id)
-            result = session.exec(stmt)
-            file_obj = result.one_or_none()
-
-            if not file_obj or not file_obj.filePath:
-                return web.json_response(
-                    {"error": "File record or path not found."},
-                    status=HTTPStatus.NOT_FOUND,
-                )
-
-            file_path = Path(file_obj.filePath)
-            if not file_path.is_file():
-                return web.json_response(
-                    {"error": "File not found on disk."},
-                    status=HTTPStatus.NOT_FOUND,
-                )
-
-            if file_path.suffix.lower() in VIDEO_EXTENSIONS:
-                stmt = select(VideoDB).where(VideoDB.videoPathId == file_id)
-                video_result = session.exec(stmt)
-                video_obj = video_result.one_or_none()
-                if video_obj:
-                    video_obj.downloaded = True
-                    session.add(video_obj)
-                    session.commit()
-                    # Deep-copy out data model before session terminates
-                    video_data = video_obj.model_dump()
-
-        if video_obj:
-            await SioEmitter.message(video_data)
-
-        return web.FileResponse(
-            path=file_path,
-            headers={"Content-Disposition": f'attachment; filename="{file_path.name}"'},
-        )
-
-    except Exception as e:
-        logger.exception("[serve_file] Exception caught")
-        return web.json_response({"error": str(e)}, status=500)
-
-
-async def restart_backend(request: web.Request):
-    """Triggers an app shutdown sequence.
-
-    The wrapping parent loop intercepts the clean exit status and triggers
-    an automatic system boot-up.
-    """
-
-    def kill_self():
-        # Short timeout protects the transmission stream buffer context
-        time.sleep(0.5)
-        logger.warning("React UI called for a system reboot. Terminating process...")
-        sys.exit(3)
-
-    loop = asyncio.get_running_loop()
-    loop.run_in_executor(None, kill_self)
-
-    return web.json_response(
-        {"status": "restarting", "message": "Backend engine is rebooting..."},
-        status=HTTPStatus.OK,
-    )
-
-
-# Standard Application Routes setup
-app.add_routes(
-    [
-        web.get("/api/", index),
-        web.get("/api/files/{fileId:.*}", serve_file),
-        web.post("/api/restart", restart_backend),
-    ]
-)
-app.add_routes(video_router)
-
-cors = aiohttp_cors.setup(
-    app,
-    defaults={
-        "http://localhost:5173": aiohttp_cors.ResourceOptions(
-            allow_credentials=True,
-            expose_headers="*",
-            allow_headers="*",
-            allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        )
-    },
+app = FastAPI(
+    title="YTDLP-PY-GUI Backend API",
+    version="1.0.0",
+    lifespan=lifespan
 )
 
-for route in list(app.router.routes()):
-    resource = route.resource
-    if (
-        resource is not None
-        and hasattr(resource, "canonical")
-        and not resource.canonical.startswith("/socket.io")
-    ):
-        cors.add(route)
+# Enable CORS for frontend Vite dev server
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
+# Register REST Routers
+app.include_router(auth_router)
+app.include_router(admin_router)
+app.include_router(video_router)
+app.include_router(files_router)
+app.include_router(system_router)
 
-async def callback(changes):
-    await asyncio.sleep(0.2)
-    os.system("cls" if os.name == "nt" else "clear")
-    logger.info("Changes detected: %s", changes)
-
-
-async def run():
-    init_db()
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, host="localhost", port=8000)
-    await site.start()
-    asyncio.create_task(src.req.ensure_ffmpeg_setup())
-    download_starter.start()
-    while True:
-        await asyncio.sleep(3600)
-
-
-class PyOnlyFilter(DefaultFilter):
-    def __call__(self, change, path):
-        return path.endswith(".py") and super().__call__(change, path)
-
-
-def runn():
-    try:
-        asyncio.run(run())
-    except Exception as e:
-        logger.exception("Server Worker Crash Caught")
-        sys.exit(3)
-
-
-async def watch_loop():
-    """Keeps the process watcher alive and active even if the target script
-
-    reloads or issues an exit code response.
-    """
-    while True:
-        try:
-            await arun_process(
-                ".", target=runn, callback=callback, watch_filter=PyOnlyFilter()
-            )
-        except (KeyboardInterrupt, SystemExit):
-            logger.warning(
-                "Intercepted execution restart signal. Spawning a fresh instance..."
-            )
-            await asyncio.sleep(1.0)
-            continue
-
+# Wrap FastAPI app with Socket.IO ASGI application
+app_asgi = socketio.ASGIApp(sio, app)
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(watch_loop())
-    except KeyboardInterrupt:
-        logger.info("Application stopped entirely.")
+    uvicorn.run("main:app_asgi", host="0.0.0.0", port=8000, reload=True)
