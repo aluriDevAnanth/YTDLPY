@@ -1,79 +1,50 @@
-import uuid
-from contextlib import contextmanager
-from enum import Enum
-from pathlib import Path
-from typing import Optional
+from typing import AsyncGenerator
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.orm import sessionmaker
+from sqlmodel import SQLModel, select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
-from sqlalchemy import create_engine
-from sqlmodel import Field, Session, SQLModel
+from src.config import DB_URL
+from src.models import User, UserSettings
+from src.crypto import get_password_hash
+from src.logger import log_success
 
-Path("./data").mkdir(parents=True, exist_ok=True)
-
-
-class QualityFormat(str, Enum):
-    BEST = "BEST"
-    BESTAUDIO = "BESTAUDIO"
-    WORST = "WORST"
-
-
-class DownloadType(str, Enum):
-    DOWNLOAD = "download"
-    SCAN = "scan"
-
-
-class DownloadStatus(str, Enum):
-    QUEUED = "queued"
-    DOWNLOADING = "downloading"
-    PAUSED = "paused"
-    COMPLETED = "completed"
-    FAILED = "failed"
-
-
-def generateUUID() -> str:
-    return str(uuid.uuid4()).replace("-", "_")
-
-
-class VideoDB(SQLModel, table=True):
-    id: str = Field(default_factory=generateUUID, primary_key=True)
-    url: str = Field()
-    format: QualityFormat = Field()
-    type: DownloadType = Field()
-    videoId: str = Field(alias="video_id")
-    fullTitle: str = Field(alias="full_title")
-    durationString: str = Field(alias="duration_string")
-    size: str = Field()
-    resolution: str = Field()
-    downloadStatus: str = Field(alias="download_status", index=True)
-    audioOnly: bool = Field()
-    watched: bool = Field()
-    downloaded: bool = Field()
-    prevWatchTime: float = Field()
-    videoPathId: str = Field()
-    thumbnailPathId: str = Field()
-    vttPathId: str = Field()
-    vttSpritePathId: str = Field()
-
-
-class FileDB(SQLModel, table=True):
-    id: str = Field(default_factory=generateUUID, primary_key=True)
-    filePath: str = Field(unique=True)
-
-
-# Sync SQLAlchemy database engine
-DATABASE_URL = "sqlite:///./data/data.sqlite"
-engine = create_engine(
-    DATABASE_URL,
-    # echo=True
+engine = create_async_engine(DB_URL, echo=False, future=True)
+async_session_maker = sessionmaker(
+    engine, class_=AsyncSession, expire_on_commit=False
 )
 
+async def init_db():
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
+    
+    # Bootstrap default Admin user if database is empty
+    async with async_session_maker() as session:
+        statement = select(User)
+        result = await session.exec(statement)
+        users = result.all()
+        if not users:
+            admin_user = User(
+                username="admin",
+                hashed_password=get_password_hash("admin123"),
+                role="admin"
+            )
+            session.add(admin_user)
+            await session.commit()
+            await session.refresh(admin_user)
+            
+            # Default settings for admin
+            admin_settings = UserSettings(
+                user_id=admin_user.id,
+                default_format="BEST",
+                max_concurrent_downloads=3,
+                auto_generate_vtt=True,
+                theme="dark"
+            )
+            session.add(admin_settings)
+            await session.commit()
+            log_success("Initial Admin account bootstrapped: username='admin', password='admin123'")
 
-# Init the database
-def init_db():
-    SQLModel.metadata.create_all(engine)
-
-
-# Sync session context manager
-@contextmanager
-def get_session():
-    with Session(engine) as session:
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    async with async_session_maker() as session:
         yield session

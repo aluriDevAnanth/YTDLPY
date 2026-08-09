@@ -1,30 +1,38 @@
 import logging
-import os
+from rich.console import Console
+from rich.logging import RichHandler
 
-try:
-    from rich.console import Console
-    from rich.logging import RichHandler
-except ImportError:  # pragma: no cover
-    Console = None
-    RichHandler = None
+console = Console()
 
+logging.basicConfig(
+    level="INFO",
+    format="%(message)s",
+    datefmt="[%X]",
+    handlers=[
+        RichHandler(
+            console=console,
+            rich_tracebacks=True,
+            markup=True,            # Render rich markup tags [bold green], [cyan], etc.
+            show_path=True,          # Display source file location on right
+            enable_link_path=True,   # Make file path clickable to jump directly to code location
+            tracebacks_show_locals=False
+        )
+    ]
+)
 
-def get_logger(name: str, level: str | None = None) -> logging.Logger:
-    logger = logging.getLogger(name)
-    if logger.handlers:
-        return logger
+logger = logging.getLogger("ytdlp_gui")
 
-    log_level_name = (level or os.getenv("LOG_LEVEL", "INFO")).upper()
-    log_level = getattr(logging, log_level_name, logging.INFO)
-    logger.setLevel(log_level)
-    logger.propagate = False
+def log_info(msg: str):
+    logger.info(f"[cyan]{msg}[/cyan]", stacklevel=2)
 
-    if RichHandler is not None:
-        handler = RichHandler(console=Console(stderr=True), rich_tracebacks=True)
-        handler.setFormatter(logging.Formatter("%(message)s"))
+def log_success(msg: str):
+    logger.info(f"[bold green]✨ {msg}[/bold green]", stacklevel=2)
+
+def log_warning(msg: str):
+    logger.warning(f"[bold yellow]⚠️ {msg}[/bold yellow]", stacklevel=2)
+
+def log_error(msg: str, exc: Exception = None):
+    if exc:
+        logger.error(f"[bold red]❌ {msg}[/bold red]", exc_info=exc, stacklevel=2)
     else:
-        handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter("[%(levelname)s] %(name)s: %(message)s"))
-
-    logger.addHandler(handler)
-    return logger
+        logger.error(f"[bold red]❌ {msg}[/bold red]", stacklevel=2)
