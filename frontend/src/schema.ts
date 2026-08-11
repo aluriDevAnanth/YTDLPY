@@ -1,14 +1,11 @@
 import * as z from "zod";
-
 export const DownloadFormS = z.object({
   id: z.string(),
   url: z.url("Please enter a valid URL"),
   format: z.enum(["BEST", "BESTAUDIO", "WORST"]),
   type: z.enum(["scan", "download"]),
 });
-
 export type DownloadFormT = z.infer<typeof DownloadFormS>;
-
 export const VideoS = z.object({
   videoId: z.string(),
   fullTitle: z.string(),
@@ -19,6 +16,7 @@ export const VideoS = z.object({
     "queued",
     "downloading",
     "generating_sprites",
+    "packing_bundle",
     "paused",
     "completed",
     "failed",
@@ -33,9 +31,7 @@ export const VideoS = z.object({
   vttSpritePathId: z.string(),
   ...DownloadFormS.shape,
 });
-
 export type VideoT = z.infer<typeof VideoS>;
-
 export const VideoProgressS = z.object({
   id: z.string(),
   videoId: z.string(),
@@ -45,14 +41,11 @@ export const VideoProgressS = z.object({
   downloadedSize: z.union([z.string(), z.number()]),
   totalSize: z.union([z.string(), z.number()]),
 });
-
 export type VideoProgressT = z.infer<typeof VideoProgressS>;
-
 export const NotifyS = z.object({
   severity: z.string(),
   summary: z.string(),
   detail: z.string(),
   extraData: z.object(),
 });
-
 export type NotifyT = z.infer<typeof NotifyS>;
