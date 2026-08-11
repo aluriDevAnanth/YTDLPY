@@ -41,12 +41,12 @@ export default function Login() {
     <Dialog
       header={isSignUp ? "Create New Account" : "Authentication Required"}
       visible={isAuthOpen}
-      style={{ width: "420px" }}
+      style={{ width: "95vw", maxWidth: "420px" }}
       closable={false}
       onHide={() => { }}
       modal
     >
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-2 font-sans">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:gap-4 mt-1 sm:mt-2 font-sans">
         {error && <Message severity="error" text={error} />}
         <div className="flex flex-col gap-1.5">
           <label htmlFor="username" className="text-xs font-semibold text-gray-300">
