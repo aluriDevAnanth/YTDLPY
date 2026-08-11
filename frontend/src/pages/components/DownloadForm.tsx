@@ -102,9 +102,14 @@ export default function DownloadForm() {
       });
   };
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="gap-3 flex w-full">
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="flex flex-col sm:flex-row gap-2.5 sm:gap-4 items-stretch sm:items-end w-full"
+    >
       <Toast ref={toastMain} />
-      <div className="flex flex-col gap-1 w-full mt-5">
+
+      {/* URL Input */}
+      <div className="flex flex-col gap-1 grow">
         <FloatLabel>
           <Controller
             name="url"
@@ -115,17 +120,21 @@ export default function DownloadForm() {
                 id="url"
                 {...field}
                 value={String(field.value ?? "")}
-                className={`${errors.url ? "p-invalid" : ""} w-full`}
+                className={`${errors.url ? "p-invalid" : ""} w-full p-inputtext-sm`}
               />
             )}
           />
-          <label htmlFor="url">Video URL</label>
+          <label htmlFor="url" className="text-xs">
+            Video URL
+          </label>
         </FloatLabel>
         {errors.url && (
-          <small className="text-red-500">{errors.url.message}</small>
+          <small className="text-red-500 text-xs">{errors.url.message}</small>
         )}
       </div>
-      <div className="flex flex-col gap-1 mt-5">
+
+      {/* Format Options Dropdown */}
+      <div className="w-full sm:w-44 shrink-0">
         <FloatLabel>
           <Controller
             name="format"
@@ -137,40 +146,42 @@ export default function DownloadForm() {
                 options={formatOptions}
                 optionLabel="label"
                 value={field.value}
-                className="w-full"
+                className="w-full p-inputtext-sm"
               />
             )}
           />
-          <label htmlFor="format">Format</label>
+          <label htmlFor="format" className="text-xs">
+            Format
+          </label>
         </FloatLabel>
       </div>
-      <div className="flex flex-col gap-1 justify-end">
+
+      {/* Mode Radios (Download / Scan) */}
+      <div className="flex sm:flex-col gap-3 sm:gap-1 px-1 justify-center shrink-0">
         <Controller
           name="type"
           control={control}
           render={({ field }) => (
-            <div className="flex flex-col gap-2">
+            <div className="flex sm:flex-col gap-3 sm:gap-1.5">
               <div className="flex items-center gap-2">
                 <RadioButton
-                  className="text-[12px]"
                   inputId="type-download"
                   value="download"
                   checked={field.value === "download"}
                   onChange={(e) => field.onChange(e.value)}
                 />
-                <label htmlFor="type-download" className="text-xs">
+                <label htmlFor="type-download" className="text-xs select-none">
                   Download
                 </label>
               </div>
               <div className="flex items-center gap-2">
                 <RadioButton
-                  className="text-[12px]"
                   inputId="type-scan"
                   value="scan"
                   checked={field.value === "scan"}
                   onChange={(e) => field.onChange(e.value)}
                 />
-                <label htmlFor="type-scan" className="text-xs">
+                <label htmlFor="type-scan" className="text-xs select-none">
                   Scan
                 </label>
               </div>
@@ -178,12 +189,15 @@ export default function DownloadForm() {
           )}
         />
       </div>
-      <div className=" mt-5">
+
+      {/* Submit Button */}
+      <div className="shrink-0">
         <Button
           loading={isSubmitting}
           type="submit"
           label="Download"
-          className="w-full"
+          icon="pi pi-download"
+          className="w-full sm:w-auto p-button-sm font-medium"
         />
       </div>
     </form>
