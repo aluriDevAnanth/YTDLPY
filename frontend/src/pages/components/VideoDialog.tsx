@@ -17,15 +17,10 @@ import "@vidstack/react/player/styles/default/layouts/video.css";
 import "@vidstack/react/player/styles/default/theme.css";
 import axios from "axios";
 import { Dialog } from "primereact/dialog";
-import {
-  type Dispatch,
-  type SetStateAction,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-import useVideoStore from "src/context/VideoStore";
+import { type Dispatch, type SetStateAction, useEffect, useRef, useState } from "react";
+import useVideoStore from "src/context/videoStore";
 import type { VideoT } from "src/schema";
+
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
 function BoostSpeedMenu({
   speed,
@@ -184,7 +179,7 @@ function VideoDialog({
       closeOnEscape
       maximizable
       visible={visible}
-      className="w-[70vw] h-fit"
+      className="w-[95vw] sm:w-[85vw] lg:w-[70vw] max-w-6xl h-fit"
       showHeader={false}
       onHide={() => setVisible(false)}
       dismissableMask
