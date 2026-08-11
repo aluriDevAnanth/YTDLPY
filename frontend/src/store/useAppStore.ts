@@ -6,6 +6,7 @@ import type { VideoProgressT, VideoT } from "../schema";
 export interface UserSettings {
   user_id: string;
   default_format: "BEST" | "BESTAUDIO" | "WORST";
+  default_view_mode?: "grid" | "table";
   max_concurrent_downloads: number;
   auto_generate_vtt: boolean;
   theme: string;
@@ -36,6 +37,7 @@ interface AppState {
   videos: Record<string, VideoT>;
   videoProgress: Record<string, VideoProgressT>;
   globalFilter: string;
+  viewMode: "table" | "grid";
   startupp: StartupSSE | null;
   setAuth: (token: string, user: User) => void;
   setUser: (user: User) => void;
@@ -50,6 +52,7 @@ interface AppState {
   upsertVideoProgress: (progress: VideoProgressT) => void;
   removeVideoProgress: (id: string) => void;
   setGlobalFilter: (filter: string) => void;
+  setViewMode: (mode: "table" | "grid") => void;
   setVideos: (videos: VideoT[]) => void;
   fetchVideos: () => Promise<void>;
   setStartupSSE: (data: StartupSSE) => void;
@@ -68,6 +71,7 @@ export const useAppStore = create<AppState>()(
         videos: {},
         videoProgress: {},
         globalFilter: "",
+        viewMode: "grid",
         startupp: null,
         setAuth: (token, user) => {
           localStorage.setItem("token", token);
@@ -75,17 +79,27 @@ export const useAppStore = create<AppState>()(
             state.token = token;
             state.user = user;
             state.settings = user.settings || null;
+            if (user.settings?.default_view_mode) {
+              state.viewMode = user.settings.default_view_mode as "grid" | "table";
+            }
             state.isAuthOpen = false;
           });
+          get().fetchVideos();
         },
         setUser: (user) =>
           set((state) => {
             state.user = user;
             state.settings = user.settings || null;
+            if (user.settings?.default_view_mode) {
+              state.viewMode = user.settings.default_view_mode as "grid" | "table";
+            }
           }),
         setSettings: (settings) =>
           set((state) => {
             state.settings = settings;
+            if (settings.default_view_mode) {
+              state.viewMode = settings.default_view_mode as "grid" | "table";
+            }
           }),
         logout: () => {
           localStorage.removeItem("token");
@@ -126,8 +140,12 @@ export const useAppStore = create<AppState>()(
             set((state) => {
               state.user = res.data;
               state.settings = res.data.settings;
+              if (res.data.settings?.default_view_mode) {
+                state.viewMode = res.data.settings.default_view_mode;
+              }
               state.isAuthOpen = false;
             });
+            get().fetchVideos();
           } catch (err) {
             console.error("Auth verify error:", err);
             get().logout();
@@ -154,6 +172,10 @@ export const useAppStore = create<AppState>()(
           set((state) => {
             state.globalFilter = filter;
           }),
+        setViewMode: (mode) =>
+          set((state) => {
+            state.viewMode = mode;
+          }),
         setVideos: (videoList) =>
           set((state) => {
             state.videos = Object.fromEntries(videoList.map((v) => [v.id, v]));
@@ -177,7 +199,7 @@ export const useAppStore = create<AppState>()(
       })),
       {
         name: "app-store",
-        partialize: (state) => ({ token: state.token }),
+        partialize: (state) => ({ token: state.token, viewMode: state.viewMode }),
       },
     ),
     {
