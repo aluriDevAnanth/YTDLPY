@@ -34,7 +34,7 @@ function App() {
   return (
     <>
       <Login />
-      {}
+      { }
       {(isLoading === "ongoing" || isRestarting) && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-[#1e1e24] text-white">
           <div className="text-center font-sans">
@@ -83,7 +83,7 @@ function App() {
       )}
       <div
         className={clsx(
-          "transition-opacity duration-400 ease-in-out",
+          "transition-opacity duration-400 ease-in-out w-full min-h-screen p-1.5 sm:p-2 md:p-2 flex flex-col",
           isLoading !== "success" || isRestarting || !token || !user
             ? "pointer-events-none opacity-0"
             : "opacity-100",

@@ -1,9 +1,16 @@
 @layer theme, primereact, utilities;
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
-@import "primereact/resources/themes/lara-light-blue/theme.css"
-layer(primereact);
 @custom-variant dark (&:where([tw-data-theme=dark], [tw-data-theme=dark] *));
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
 
 /* Enlarge Vidstack seek thumbnail preview popover */
 .vds-thumbnail {
