@@ -6,16 +6,14 @@ import { Dialog } from "primereact/dialog";
 import { Toast } from "primereact/toast";
 import { type ReactNode, useRef, useState } from "react";
 import ReactJson from "react-json-view";
-import useVideoStore from "src/context/VideoStore";
+import useVideoStore from "src/context/videoStore";
 import { type VideoT } from "src/schema";
 import VideoDialog from "./VideoDialog";
-
 export default function TableRowOptionMenu(rowData: VideoT): ReactNode {
   const toast = useRef<Toast>(null);
   const [visible, setVisible] = useState(false);
   const [info, setInfo] = useState(false);
   const removeVideo = useVideoStore((state) => state.removeVideo);
-
   function downloadVideo() {
     const config: AxiosRequestConfig<object> = {
       method: "get",
@@ -24,7 +22,6 @@ export default function TableRowOptionMenu(rowData: VideoT): ReactNode {
       headers: {},
       responseType: "blob",
     };
-
     axios
       .request(config)
       .then((response) => {
@@ -34,7 +31,6 @@ export default function TableRowOptionMenu(rowData: VideoT): ReactNode {
         console.error(error);
       });
   }
-
   async function deleteVideo() {
     const config: AxiosRequestConfig = {
       method: "delete",
@@ -42,7 +38,6 @@ export default function TableRowOptionMenu(rowData: VideoT): ReactNode {
       url: `http://localhost:8000/api/video/${rowData.id}`,
       headers: {},
     };
-
     await axios
       .request(config)
       .then(() => {
@@ -52,11 +47,9 @@ export default function TableRowOptionMenu(rowData: VideoT): ReactNode {
         console.error(error);
       });
   }
-
   return (
     <div className="relative group inline-flex items-center">
       <Toast ref={toast} />
-
       {info && (
         <Dialog
           header={`Info for video ${rowData.fullTitle}`}
@@ -65,7 +58,7 @@ export default function TableRowOptionMenu(rowData: VideoT): ReactNode {
           onHide={() => setInfo(false)}
           dismissableMask
         >
-          {/* <pre>{JSON.stringify(rowData, null, 2)}</pre> */}
+          {}
           <ReactJson
             src={rowData}
             theme={"ocean"}
@@ -74,7 +67,6 @@ export default function TableRowOptionMenu(rowData: VideoT): ReactNode {
           />
         </Dialog>
       )}
-
       {visible && (
         <VideoDialog
           visible={visible}
@@ -82,11 +74,9 @@ export default function TableRowOptionMenu(rowData: VideoT): ReactNode {
           rowData={rowData}
         />
       )}
-
       <Button onClick={() => setVisible(true)} className="px-1 py-[2px]">
         <Icon icon="tabler:play" className="stroke-3 text-[20px] font-bold" />
       </Button>
-
       <div
         className="absolute left-full top-0 ml-2 opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity duration-200 space-x-2 z-50 bg-transparent"
         onClick={(e) => e.stopPropagation()}
