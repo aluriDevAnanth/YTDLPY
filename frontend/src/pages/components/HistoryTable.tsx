@@ -1,5 +1,4 @@
 import { Icon } from "@iconify/react/dist/iconify.js";
-import axios from "axios";
 import { FilterMatchMode } from "primereact/api";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
@@ -21,6 +20,7 @@ import { type VideoT } from "src/schema";
 import ProgressBarOrID from "./ProgressBarOrID";
 import TableRowOptionMenu from "./TableRowOptionMenu";
 import VideoDialog from "./VideoDialog";
+import YoutubeGridView from "./GridView";
 const HoverContext = createContext<{
   setHoveredThumbnail: (
     state: {
@@ -40,21 +40,21 @@ const ThumbnailPreview = memo(
       y: number;
     };
   }) => {
-    const windowWidth = window.innerWidth;
-    const previewWidth = 0.4 * windowWidth;
+    const windowWidth = typeof window !== "undefined" ? window.innerWidth : 1024;
+    const previewWidth = Math.min(0.8 * windowWidth, 320);
     const { url, x } = hoveredThumbnail;
     const adjustedX =
       x + previewWidth > windowWidth
-        ? windowWidth - previewWidth - windowWidth / 2
-        : x;
+        ? Math.max(10, windowWidth - previewWidth - 20)
+        : Math.max(10, x);
+
     return (
       <div
-        className="z-50 fixed pointer-events-none shadow-xl rounded-md top-1/10"
+        className="z-50 fixed pointer-events-none shadow-xl rounded-md top-1/10 bg-black/80 p-1 border border-gray-700 max-w-[90vw]"
         style={{
-          right: `${adjustedX}px`,
-          width: "40vw",
+          left: `${adjustedX}px`,
+          width: `${previewWidth}px`,
           height: "auto",
-          padding: "4px",
         }}
       >
         <img
@@ -123,19 +123,18 @@ const TagsCell = memo(
 );
 const UrlBody = memo(({ rowData }: { rowData: VideoT }) => {
   return (
-    <div className="space-x-1">
+    <div className="flex items-center gap-1">
       <Button
         onClick={(e) => {
           e.preventDefault();
           window.open(rowData.url, "_blank");
         }}
-        className="px-1 py-[2px]"
+        className="p-1 p-button-sm shrink-0"
         severity="info"
+        tooltip="Open Link"
+        tooltipOptions={{ position: "top" }}
       >
-        <Icon
-          icon="tabler:external-link"
-          className="stroke-3 text-[20px] font-bold"
-        />
+        <Icon icon="tabler:external-link" className="text-base" />
       </Button>
       <CopyUrlButton rowData={rowData} />
     </div>
@@ -163,27 +162,12 @@ function TableGrid({
 }) {
   const videos = useVideoStore((state) => state.videos);
   const globalFilter = useVideoStore((state) => state.globalFilter);
-  const [loading, setLoading] = useState(true);
+  const fetchVideos = useVideoStore((state) => state.fetchVideos);
+  const [loading, setLoading] = useState(false);
+
   useEffect(() => {
-    const fetchVideos = async () => {
-      try {
-        const response = await axios.get(
-          `${import.meta.env.VITE_BASE_URL}/videos`,
-          { headers: { "Content-Type": "application/json" } },
-        );
-        useVideoStore.setState({
-          videos: Object.fromEntries(
-            response.data.map((v: VideoT) => [v.id, v]),
-          ),
-        });
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchVideos();
-  }, []);
+    fetchVideos().finally(() => setLoading(false));
+  }, [fetchVideos]);
   const videosData = Object.values(videos).filter(Boolean);
   const renderTextInputFilter = useCallback((placeholder: string) => {
     return (options: any) => (
@@ -191,7 +175,7 @@ function TableGrid({
         value={options.value || ""}
         onChange={(e) => options.filterApplyCallback(e.target.value)}
         placeholder={placeholder}
-        className="p-inputtext-sm"
+        className="p-inputtext-sm py-0.5 px-1.5 text-xs w-full"
       />
     );
   }, []);
@@ -211,10 +195,11 @@ function TableGrid({
       removableSort
       sortMode="multiple"
       filterDisplay="row"
-      width={"100vw"}
       scrollable
       emptyMessage="No Videos, add using above form"
-      pt={{ root: { className: "text-[12px] rounded-lg" } }}
+      pt={{
+        root: { className: "text-xs rounded-lg w-full overflow-x-auto" },
+      }}
     >
       <Column
         field="url"
@@ -224,11 +209,11 @@ function TableGrid({
       <Column
         header="Op"
         body={(rowData) => TableRowOptionMenu(rowData)}
-        pt={{ bodyCell: { className: "overflow-visible" } }}
+        pt={{ bodyCell: { className: "p-1.5 sm:p-2 overflow-visible" } }}
       />
       <Column
         header="Status / ID"
-        style={{ width: "240px", minWidth: "240px", maxWidth: "240px" }}
+        style={{ width: "200px", minWidth: "170px", maxWidth: "210px" }}
         body={(rowData) => <ProgressBarOrID rowData={rowData} />}
       />
       <Column
@@ -286,10 +271,15 @@ function CopyUrlButton({ rowData }: { rowData: VideoT }): JSX.Element {
     }
   };
   return (
-    <Button onClick={handleCopy} className="px-1 py-[2px]">
+    <Button
+      onClick={handleCopy}
+      className="p-1 p-button-sm shrink-0"
+      tooltip={copied ? "Copied!" : "Copy URL"}
+      tooltipOptions={{ position: "top" }}
+    >
       <Icon
         icon={copied ? "tabler:check" : "tabler:copy"}
-        className="stroke-3 text-[20px] font-bold"
+        className={`text-base ${copied ? "text-emerald-400" : ""}`}
       />
     </Button>
   );
@@ -304,7 +294,7 @@ function HistoryTable() {
         x: number;
         y: number;
       } | null,
-    ) => void = () => {};
+    ) => void = () => { };
     return {
       setHoveredThumbnail: (
         state: {
@@ -322,9 +312,19 @@ function HistoryTable() {
     setSelectedVideo(video);
     setVisible(true);
   }, []);
+  const token = useVideoStore((state) => state.token);
+  const viewMode = useVideoStore((state) => state.viewMode);
+  const fetchVideos = useVideoStore((state) => state.fetchVideos);
+
+  useEffect(() => {
+    if (token) {
+      fetchVideos();
+    }
+  }, [token, fetchVideos]);
+
   return (
     <HoverContext.Provider value={contextValue}>
-      <div className="relative py-3">
+      <div className="relative py-0">
         <Tooltip target=".qqq" mouseTrack mouseTrackLeft={10} />
         {selectedVideo && (
           <VideoDialog
@@ -334,7 +334,11 @@ function HistoryTable() {
           />
         )}
         <PreviewPortalContainer />
-        <TableGrid onTagDoubleClick={handleTagDoubleClick} />
+        {viewMode === "grid" ? (
+          <YoutubeGridView />
+        ) : (
+          <TableGrid onTagDoubleClick={handleTagDoubleClick} />
+        )}
       </div>
     </HoverContext.Provider>
   );
