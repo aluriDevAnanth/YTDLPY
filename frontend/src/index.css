@@ -4,3 +4,16 @@
 @import "primereact/resources/themes/lara-light-blue/theme.css"
 layer(primereact);
 @custom-variant dark (&:where([tw-data-theme=dark], [tw-data-theme=dark] *));
+
+/* Enlarge Vidstack seek thumbnail preview popover */
+.vds-thumbnail {
+  --media-thumbnail-width: 240px;
+  --media-thumbnail-height: 135px;
+  min-width: 240px !important;
+  min-height: 135px !important;
+}
+
+.vds-slider-preview {
+  --media-thumbnail-width: 240px;
+  --media-thumbnail-height: 135px;
+}
