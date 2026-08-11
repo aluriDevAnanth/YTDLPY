@@ -109,7 +109,7 @@ export default function AdminDialog() {
     <Dialog
       header="System User Administration"
       visible={isAdminOpen}
-      style={{ width: "70vw" }}
+      style={{ width: "95vw", maxWidth: "900px" }}
       onHide={() => setAdminOpen(false)}
       dismissableMask
     >
@@ -166,7 +166,7 @@ export default function AdminDialog() {
           header="Create User Account"
           visible={showAddModal}
           onHide={() => setShowAddModal(false)}
-          style={{ width: "400px" }}
+          style={{ width: "95vw", maxWidth: "400px" }}
           dismissableMask
         >
           <form

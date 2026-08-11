@@ -71,7 +71,7 @@ function ProgressBarOrID({ rowData }: { rowData: VideoT }) {
   };
   if (rowData.downloadStatus === "completed") {
     return (
-      <div className="w-[220px] min-w-[220px] max-w-[220px] flex items-center justify-between gap-2">
+      <div className="w-full min-w-[140px] max-w-[190px] flex items-center justify-between gap-2">
         <span className="font-mono text-xs text-gray-300 truncate">{rowData.id}</span>
         <Button
           onClick={handleCopy}
@@ -88,7 +88,7 @@ function ProgressBarOrID({ rowData }: { rowData: VideoT }) {
   }
   if (rowData.downloadStatus === "generating_sprites") {
     return (
-      <div className="w-[220px] min-w-[220px] max-w-[220px] flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 text-xs font-medium tabular-nums">
+      <div className="w-full min-w-[140px] max-w-[190px] flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 text-xs font-medium tabular-nums">
         <div className="flex items-center gap-1.5 truncate">
           <ProgressSpinner
             strokeWidth="6"
@@ -105,7 +105,7 @@ function ProgressBarOrID({ rowData }: { rowData: VideoT }) {
   }
   if (rowData.downloadStatus === "packing_bundle" || throttledProgress?.speed === "Bundling") {
     return (
-      <div className="w-[220px] min-w-[220px] max-w-[220px] flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-amber-950/40 border border-amber-500/30 text-amber-300 text-xs font-medium tabular-nums">
+      <div className="w-full min-w-[140px] max-w-[190px] flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-amber-950/40 border border-amber-500/30 text-amber-300 text-xs font-medium tabular-nums">
         <div className="flex items-center gap-1.5 truncate">
           <ProgressSpinner
             strokeWidth="6"
@@ -122,7 +122,7 @@ function ProgressBarOrID({ rowData }: { rowData: VideoT }) {
   }
   if (throttledProgress) {
     return (
-      <div className="w-[220px] min-w-[220px] max-w-[220px] flex flex-col gap-1.5">
+      <div className="w-full min-w-[140px] max-w-[190px] flex flex-col gap-1.5">
         <div className="flex gap-1 items-center">
           <ProgressBar className="w-full h-1.5 rounded-full bg-gray-800 items-center" value={displayPercent} showValue={false} />
           <span className="text-[11px] text-gray-400 font-mono tabular-nums">{displayPercent > 0 ? `${displayPercent}%` : "0%"}</span>
@@ -136,7 +136,7 @@ function ProgressBarOrID({ rowData }: { rowData: VideoT }) {
     );
   }
   return (
-    <div className="w-[220px] min-w-[220px] max-w-[220px] flex items-center gap-2 text-xs text-gray-400">
+    <div className="w-full min-w-[140px] max-w-[190px] flex items-center gap-2 text-xs text-gray-400">
       <ProgressSpinner
         strokeWidth="6"
         animationDuration="1s"

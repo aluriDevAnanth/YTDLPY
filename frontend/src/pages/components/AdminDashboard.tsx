@@ -131,87 +131,88 @@ export default function AdminDashboard() {
     }
   };
   return (
-    <div className="w-full mx-auto p-2 flex flex-col gap-6 font-sans">
+    <div className="w-full mx-auto p-0 sm:p-2 flex flex-col gap-2.5 sm:gap-6 font-sans">
       <Toast ref={toast} />
-      {}
-      <div className="flex gap-3 items-center h-10">
-        <span className="text-lg font-bold text-gray-100 flex items-center gap-2">
+      {/* Dashboard Top Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3 min-h-10">
+        <span className="text-base sm:text-lg font-bold text-gray-100 flex items-center gap-2">
           <Icon
             icon="tabler:layout-dashboard"
-            className="text-cyan-400 text-xl"
+            className="text-cyan-400 text-xl shrink-0"
           />
-          <span>System Analytics & Management</span>
+          <span className="truncate">System Analytics & Management</span>
         </span>
         <Button
           icon="pi pi-refresh"
           onClick={fetchDashboardData}
           loading={loading}
-          className="size-9"
+          className="size-9 p-button-sm shrink-0"
           tooltip="Refresh Analytics"
           tooltipOptions={{ position: "bottom" }}
         />
       </div>
-      {}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {}
-        <div className="p-4 rounded-xl bg-gray-800/60 border border-gray-700/60 flex items-center justify-between shadow-sm">
+
+      {/* Analytics Cards Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+        {/* Users Card */}
+        <div className="p-2.5 sm:p-4 rounded-lg sm:rounded-xl bg-gray-800/60 border border-gray-700/60 flex items-center justify-between shadow-sm">
           <div className="flex flex-col gap-0.5">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-gray-400">
               Users
             </span>
-            <span className="text-2xl font-bold font-mono text-cyan-400">
+            <span className="text-lg sm:text-2xl font-bold font-mono text-cyan-400">
               {(stats?.total_users ?? 0) - 1}
             </span>
           </div>
-          <div className="p-2.5 rounded-lg bg-cyan-500/10 text-cyan-400">
-            <Icon icon="tabler:users" className="text-xl" />
+          <div className="p-1.5 sm:p-2.5 rounded-md sm:rounded-lg bg-cyan-500/10 text-cyan-400">
+            <Icon icon="tabler:users" className="text-base sm:text-xl" />
           </div>
         </div>
-        {}
-        <div className="p-4 rounded-xl bg-gray-800/60 border border-gray-700/60 flex items-center justify-between shadow-sm">
+        {/* Videos Card */}
+        <div className="p-2.5 sm:p-4 rounded-lg sm:rounded-xl bg-gray-800/60 border border-gray-700/60 flex items-center justify-between shadow-sm">
           <div className="flex flex-col gap-0.5">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-gray-400">
               Videos
             </span>
-            <span className="text-2xl font-bold font-mono text-indigo-400">
+            <span className="text-lg sm:text-2xl font-bold font-mono text-indigo-400">
               {stats?.total_videos ?? 0}
             </span>
           </div>
-          <div className="p-2.5 rounded-lg bg-indigo-500/10 text-indigo-400">
-            <Icon icon="tabler:video" className="text-xl" />
+          <div className="p-1.5 sm:p-2.5 rounded-md sm:rounded-lg bg-indigo-500/10 text-indigo-400">
+            <Icon icon="tabler:video" className="text-base sm:text-xl" />
           </div>
         </div>
-        {}
-        <div className="p-4 rounded-xl bg-gray-800/60 border border-gray-700/60 flex items-center justify-between shadow-sm">
+        {/* Disk Usage Card */}
+        <div className="p-2.5 sm:p-4 rounded-lg sm:rounded-xl bg-gray-800/60 border border-gray-700/60 flex items-center justify-between shadow-sm">
           <div className="flex flex-col gap-0.5">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-gray-400">
               Disk Usage
             </span>
-            <span className="text-2xl font-bold font-mono text-amber-400">
+            <span className="text-lg sm:text-2xl font-bold font-mono text-amber-400 truncate max-w-[90px] sm:max-w-none">
               {stats?.formatted_storage ?? "0 MiB"}
             </span>
           </div>
-          <div className="p-2.5 rounded-lg bg-amber-500/10 text-amber-400">
-            <Icon icon="tabler:database" className="text-xl" />
+          <div className="p-1.5 sm:p-2.5 rounded-md sm:rounded-lg bg-amber-500/10 text-amber-400">
+            <Icon icon="tabler:database" className="text-base sm:text-xl" />
           </div>
         </div>
-        {}
-        <div className="p-4 rounded-xl bg-gray-800/60 border border-gray-700/60 flex items-center justify-between shadow-sm">
+        {/* Completed Card */}
+        <div className="p-2.5 sm:p-4 rounded-lg sm:rounded-xl bg-gray-800/60 border border-gray-700/60 flex items-center justify-between shadow-sm">
           <div className="flex flex-col gap-0.5">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-gray-400">
               Completed
             </span>
-            <span className="text-2xl font-bold font-mono text-emerald-400">
+            <span className="text-lg sm:text-2xl font-bold font-mono text-emerald-400">
               {stats?.completed_downloads ?? 0}
             </span>
           </div>
-          <div className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400">
-            <Icon icon="tabler:circle-check" className="text-xl" />
+          <div className="p-1.5 sm:p-2.5 rounded-md sm:rounded-lg bg-emerald-500/10 text-emerald-400">
+            <Icon icon="tabler:circle-check" className="text-base sm:text-xl" />
           </div>
         </div>
       </div>
-      {}
-      <div className="flex flex-col gap-3 bg-gray-800/40 p-4 rounded-xl border border-gray-700/50">
+      {/* Accounts Table Container */}
+      <div className="flex flex-col gap-2 sm:gap-3 bg-gray-800/40 p-2.5 sm:p-4 rounded-xl border border-gray-700/50">
         <div className="flex justify-between items-center px-1">
           <span className="text-sm font-bold text-gray-200">User Accounts</span>
           <Button
@@ -277,7 +278,7 @@ export default function AdminDashboard() {
           header="Create User Account"
           visible={showAddModal}
           onHide={() => setShowAddModal(false)}
-          style={{ width: "380px" }}
+          style={{ width: "95vw", maxWidth: "400px" }}
           dismissableMask
         >
           <form
