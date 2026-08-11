@@ -6,22 +6,21 @@ import { FloatLabel } from "primereact/floatlabel";
 import { InputText } from "primereact/inputtext";
 import { RadioButton } from "primereact/radiobutton";
 import { Toast } from "primereact/toast";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Controller, useForm } from "react-hook-form";
-import useVideoStore from "src/context/VideoStore";
+import { useAuthStore } from "src/context/authStore";
+import useVideoStore from "src/context/videoStore";
 import {
   DownloadFormS,
   type DownloadFormT,
   VideoS,
   type VideoT,
 } from "../../schema";
-
 const formatOptions = [
   { label: "Best", value: "BEST" },
   { label: "Audio Only", value: "BESTAUDIO" },
   { label: "Worst", value: "WORST" },
 ];
-
 async function hashUrl(url: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(url);
@@ -30,27 +29,32 @@ async function hashUrl(url: string): Promise<string> {
   const hashHex = hashArray
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
-  return hashHex.slice(0, 16); // trim to desired length
+  return hashHex.slice(0, 16);
 }
-
 export default function DownloadForm() {
+  const userSettings = useAuthStore((s) => s.settings);
   const {
     control,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<DownloadFormT>({
     defaultValues: {
       id: "",
       url: "",
-      format: "BEST",
+      format: userSettings?.default_format || "BEST",
       type: "download",
     },
     resolver: zodResolver(DownloadFormS),
   });
+  useEffect(() => {
+    if (userSettings?.default_format) {
+      setValue("format", userSettings.default_format);
+    }
+  }, [userSettings, setValue]);
   const upsertVideo = useVideoStore((state) => state.upsertVideo);
   const toastMain = useRef<Toast>(null);
-
   const onSubmit = async (data: DownloadFormT) => {
     const dataa: VideoT = {
       id: await hashUrl(data.url),
@@ -72,7 +76,6 @@ export default function DownloadForm() {
       vttPathId: "",
       vttSpritePathId: "",
     };
-
     const config = {
       method: "post",
       maxBodyLength: Infinity,
@@ -82,7 +85,6 @@ export default function DownloadForm() {
       },
       data: dataa,
     };
-
     await axios
       .request(config)
       .then((response) => {
@@ -95,11 +97,10 @@ export default function DownloadForm() {
         toastMain.current?.show({
           severity: "error",
           summary: "Error",
-          detail: `Error while initiating download of video ${error.response?.data?.video?.fullTitle}: ${error.response?.data?.error}`,
+          detail: `Error initiating download: ${error.response?.data?.detail || error.message}`,
         });
       });
   };
-
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="gap-3 flex w-full">
       <Toast ref={toastMain} />
@@ -124,7 +125,6 @@ export default function DownloadForm() {
           <small className="text-red-500">{errors.url.message}</small>
         )}
       </div>
-
       <div className="flex flex-col gap-1 mt-5">
         <FloatLabel>
           <Controller
@@ -144,7 +144,6 @@ export default function DownloadForm() {
           <label htmlFor="format">Format</label>
         </FloatLabel>
       </div>
-
       <div className="flex flex-col gap-1 justify-end">
         <Controller
           name="type"
@@ -179,7 +178,6 @@ export default function DownloadForm() {
           )}
         />
       </div>
-
       <div className=" mt-5">
         <Button
           loading={isSubmitting}
