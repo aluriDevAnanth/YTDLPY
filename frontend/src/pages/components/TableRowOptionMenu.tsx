@@ -6,14 +6,16 @@ import { Dialog } from "primereact/dialog";
 import { Toast } from "primereact/toast";
 import { type ReactNode, useRef, useState } from "react";
 import ReactJson from "react-json-view";
-import useVideoStore from "src/context/VideoStore";
+import useVideoStore from "src/context/videoStore";
 import { type VideoT } from "src/schema";
 import VideoDialog from "./VideoDialog";
+
 export default function TableRowOptionMenu(rowData: VideoT): ReactNode {
   const toast = useRef<Toast>(null);
   const [visible, setVisible] = useState(false);
   const [info, setInfo] = useState(false);
   const removeVideo = useVideoStore((state) => state.removeVideo);
+
   function downloadVideo() {
     const config: AxiosRequestConfig<object> = {
       method: "get",
@@ -31,6 +33,7 @@ export default function TableRowOptionMenu(rowData: VideoT): ReactNode {
         console.error(error);
       });
   }
+
   async function deleteVideo() {
     const config: AxiosRequestConfig = {
       method: "delete",
@@ -47,26 +50,29 @@ export default function TableRowOptionMenu(rowData: VideoT): ReactNode {
         console.error(error);
       });
   }
+
   return (
-    <div className="relative group inline-flex items-center">
+    <div className="relative group inline-flex items-center gap-1">
       <Toast ref={toast} />
       {info && (
         <Dialog
-          header={`Info for video ${rowData.fullTitle}`}
+          header={`Info: ${rowData.fullTitle || rowData.id}`}
           visible={info}
-          style={{ width: "80vw" }}
+          style={{ width: "95vw", maxWidth: "800px" }}
           onHide={() => setInfo(false)}
           dismissableMask
         >
-          {}
-          <ReactJson
-            src={rowData}
-            theme={"ocean"}
-            iconStyle="circle"
-            collapseStringsAfterLength={100}
-          />
+          <div className="overflow-x-auto max-h-[70vh]">
+            <ReactJson
+              src={rowData}
+              theme={"ocean"}
+              iconStyle="circle"
+              collapseStringsAfterLength={100}
+            />
+          </div>
         </Dialog>
       )}
+
       {visible && (
         <VideoDialog
           visible={visible}
@@ -74,42 +80,47 @@ export default function TableRowOptionMenu(rowData: VideoT): ReactNode {
           rowData={rowData}
         />
       )}
-      <Button onClick={() => setVisible(true)} className="px-1 py-[2px]">
-        <Icon icon="tabler:play" className="stroke-3 text-[20px] font-bold" />
+
+      <Button
+        onClick={() => setVisible(true)}
+        className="px-1.5 py-1 p-button-sm"
+        tooltip="Play Video"
+        tooltipOptions={{ position: "top" }}
+      >
+        <Icon icon="tabler:play" className="text-lg" />
       </Button>
+
+      {/* Action buttons: inline on small screens, slide out on hover on desktop */}
       <div
-        className="absolute left-full top-0 ml-2 opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity duration-200 space-x-2 z-50 bg-transparent"
+        className="flex items-center gap-1 md:absolute md:left-full md:top-0 md:ml-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 z-50"
         onClick={(e) => e.stopPropagation()}
       >
         <Button
           onClick={downloadVideo}
           severity="success"
-          className="px-1 py-[2px]"
+          className="px-1.5 py-1 p-button-sm"
+          tooltip="Download"
+          tooltipOptions={{ position: "top" }}
         >
-          <Icon
-            icon="tabler:download"
-            className="stroke-3 text-[20px] font-bold"
-          />
+          <Icon icon="tabler:download" className="text-lg" />
         </Button>
         <Button
           onClick={() => setInfo(true)}
           severity="warning"
-          className="px-1 py-[2px]"
+          className="px-1.5 py-1 p-button-sm"
+          tooltip="Info"
+          tooltipOptions={{ position: "top" }}
         >
-          <Icon
-            icon="tabler:info-circle"
-            className="stroke-3 text-[20px] font-bold"
-          />
+          <Icon icon="tabler:info-circle" className="text-lg" />
         </Button>
         <Button
           onClick={deleteVideo}
           severity="danger"
-          className="px-1 py-[2px]"
+          className="px-1.5 py-1 p-button-sm"
+          tooltip="Delete"
+          tooltipOptions={{ position: "top" }}
         >
-          <Icon
-            icon="tabler:trash"
-            className="stroke-3 text-[20px] font-bold"
-          />
+          <Icon icon="tabler:trash" className="text-lg" />
         </Button>
       </div>
     </div>
