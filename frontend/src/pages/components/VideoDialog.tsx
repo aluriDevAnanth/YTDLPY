@@ -26,9 +26,7 @@ import {
 } from "react";
 import useVideoStore from "src/context/VideoStore";
 import type { VideoT } from "src/schema";
-
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
-
 function BoostSpeedMenu({
   speed,
   onSpeedChange,
@@ -80,7 +78,6 @@ function BoostSpeedMenu({
     </Menu.Root>
   );
 }
-
 function VideoDialog({
   visible,
   setVisible,
@@ -95,19 +92,15 @@ function VideoDialog({
   const notificationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
-
   const { playbackRate } = useStore(MediaPlayerInstance, player);
   const [speedIndex, setSpeedIndex] = useState(1.5);
   const [showSpeedChangeNotification, SetShowSpeedChangeNotification] =
     useState(false);
-
   const upsertVideo = useVideoStore((state) => state.upsertVideo);
-
   function markAsWatched(): void {
     const data = { ...rowData };
     if (data.watched == true) return;
     data.watched = true;
-
     const config = {
       method: "put",
       maxBodyLength: Infinity,
@@ -117,7 +110,6 @@ function VideoDialog({
       },
       data: data,
     };
-
     axios
       .request(config)
       .then((response) => {
@@ -127,30 +119,24 @@ function VideoDialog({
         console.error(error);
       });
   }
-
   const handleSpeedChange = (newSpeed: number) => {
     setSpeedIndex(newSpeed);
     if (player.current) {
       player.current.playbackRate = newSpeed;
     }
   };
-
   useEffect(() => {
     if (playbackRate !== undefined) {
-      // Clear any existing timeout
       if (notificationTimeoutRef.current) {
         clearTimeout(notificationTimeoutRef.current);
         notificationTimeoutRef.current = null;
       }
-
       SetShowSpeedChangeNotification(true);
-
       notificationTimeoutRef.current = setTimeout(() => {
         SetShowSpeedChangeNotification(false);
         notificationTimeoutRef.current = null;
       }, 1000);
     }
-
     return () => {
       if (notificationTimeoutRef.current) {
         clearTimeout(notificationTimeoutRef.current);
@@ -158,13 +144,11 @@ function VideoDialog({
       }
     };
   }, [playbackRate]);
-
   useEffect(() => {
     const interval = setInterval(() => {
       console.log(rowData.id, rowData.fullTitle, player.current?.currentTime);
       if (localPrevWatchTime == Math.floor(player.current?.currentTime || 0))
         return;
-
       const config = {
         method: "put",
         maxBodyLength: Infinity,
@@ -177,7 +161,6 @@ function VideoDialog({
           prevWatchTime: Math.floor(player.current?.currentTime || 0),
         },
       };
-
       axios
         .request(config)
         .then((response) => {
@@ -187,7 +170,6 @@ function VideoDialog({
           console.error(error);
         });
     }, 5000);
-
     return () => {
       clearInterval(interval);
       upsertVideo({
@@ -196,7 +178,6 @@ function VideoDialog({
       });
     };
   }, []);
-
   return (
     <Dialog
       position="top"
@@ -218,7 +199,7 @@ function VideoDialog({
         ref={player}
         currentTime={rowData.prevWatchTime || 0}
         src={{
-          src: "http://localhost:8000/api/files/" + rowData.videoPathId,
+          src: "http://localhost:8000/api/files/" + rowData.videoPathId + "?token=" + (localStorage.getItem("token") || ""),
           type: "video/mp4",
         }}
         viewType="video"
@@ -229,7 +210,7 @@ function VideoDialog({
         title={rowData.fullTitle}
         poster={
           rowData.prevWatchTime == 0
-            ? "http://localhost:8000/api/files/" + rowData.thumbnailPathId
+            ? "http://localhost:8000/api/files/" + rowData.thumbnailPathId + "?token=" + (localStorage.getItem("token") || "")
             : undefined
         }
         onPlay={markAsWatched}
@@ -288,7 +269,7 @@ function VideoDialog({
         <DefaultVideoLayout
           showTooltipDelay={300}
           seekStep={5}
-          thumbnails={"http://localhost:8000/api/files/" + rowData.vttPathId}
+          thumbnails={"http://localhost:8000/api/files/" + (rowData.vttPathId ? rowData.vttPathId + ".vtt" : rowData.id + "_vtt.vtt") + "?token=" + (localStorage.getItem("token") || "")}
           download
           icons={defaultLayoutIcons}
           slots={{
@@ -311,7 +292,6 @@ function VideoDialog({
                     Current Playback Rate
                   </Tooltip.Content>
                 </Tooltip.Root>
-
                 <BoostSpeedMenu
                   speed={speedIndex}
                   onSpeedChange={handleSpeedChange}
@@ -324,5 +304,4 @@ function VideoDialog({
     </Dialog>
   );
 }
-
 export default VideoDialog;

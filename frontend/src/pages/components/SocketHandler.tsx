@@ -1,72 +1,57 @@
 import { Toast } from "primereact/toast";
 import { useEffect } from "react";
-import { useStartupSSEStore, type StartupSSE } from "src/context/SSEStore";
-import useVideoStore from "src/context/VideoStore";
+import useAppStore, { type StartupSSE } from "src/store/useAppStore";
 import { VideoS, type NotifyT, type VideoProgressT } from "src/schema";
 import { socket } from "src/socket";
-
 type Props = {
   toastRef: React.RefObject<Toast | null>;
 };
-
 export default function SocketHandler({ toastRef }: Props) {
-  const upsertVideoProgress = useVideoStore((s) => s.upsertVideoProgress);
-  const upsertVideo = useVideoStore((s) => s.upsertVideo);
-  const removeVideo = useVideoStore((s) => s.removeVideo);
-  const upsertSSE = useStartupSSEStore((state) => state.upsertSSE);
-
+  const upsertVideoProgress = useAppStore((s) => s.upsertVideoProgress);
+  const upsertVideo = useAppStore((s) => s.upsertVideo);
+  const removeVideo = useAppStore((s) => s.removeVideo);
+  const setStartupSSE = useAppStore((s) => s.setStartupSSE);
+  const token = useAppStore((s) => s.token);
   useEffect(() => {
+    if (!token) {
+      if (socket.connected) socket.disconnect();
+      return;
+    }
     socket.connect();
-
-    socket.on("connect", () => {});
-
     socket.on("message", (data) => {
       const ddata = VideoS.safeParse(data);
       if (ddata.success) {
         upsertVideo(ddata.data);
       }
     });
-
     socket.on("status_update", (data: VideoProgressT) => {
-      console.log("upsertVideoProgress", data);
       upsertVideoProgress(data);
     });
-
     socket.on("notify", (data: NotifyT) => {
       toastRef.current?.show({
-        severity: data.severity as
-          | "success"
-          | "info"
-          | "warn"
-          | "error"
-          | "secondary"
-          | "contrast"
-          | undefined,
+        severity: data.severity as any,
         summary: data.summary ?? "Notification",
         detail: data.detail ?? JSON.stringify(data),
       });
     });
-
     socket.on("startupp", (data: StartupSSE) => {
-      upsertSSE({
+      setStartupSSE({
         ...data,
-        // typee: "ongoing",
-        // typee: "error",
         sseType: "startupp",
         dataID: "startupp",
       });
     });
-
     socket.on("remove_video", (id: string) => {
-      const dVideo = useVideoStore.getState().videos[id];
+      const dVideo = useAppStore.getState().videos[id];
       toastRef.current?.show({
         severity: "error",
-        summary: "Video Delete",
-        detail: `Removing video with id ${dVideo.id} and url ${dVideo.url} because of error while downloading video`,
+        summary: "Video Removed",
+        detail: dVideo
+          ? `Removing video with id ${dVideo.id} (${dVideo.fullTitle || dVideo.url})`
+          : `Removed video ${id}`,
       });
       removeVideo(id);
     });
-
     socket.on("disconnect", () => {
       toastRef.current?.show({
         severity: "warn",
@@ -75,13 +60,10 @@ export default function SocketHandler({ toastRef }: Props) {
         life: 3000,
       });
     });
-
     return () => {
       socket.disconnect();
       socket.off();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [toastRef]);
-
+  }, [token, toastRef, upsertVideo, upsertVideoProgress, removeVideo, setStartupSSE]);
   return null;
 }

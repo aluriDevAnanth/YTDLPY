@@ -16,12 +16,11 @@ import {
   useEffect,
   useState,
 } from "react";
-import useVideoStore from "src/context/VideoStore";
+import useVideoStore from "src/context/videoStore";
 import { type VideoT } from "src/schema";
 import ProgressBarOrID from "./ProgressBarOrID";
 import TableRowOptionMenu from "./TableRowOptionMenu";
 import VideoDialog from "./VideoDialog";
-
 const HoverContext = createContext<{
   setHoveredThumbnail: (
     state: {
@@ -31,7 +30,6 @@ const HoverContext = createContext<{
     } | null,
   ) => void;
 } | null>(null);
-
 const ThumbnailPreview = memo(
   ({
     hoveredThumbnail,
@@ -45,12 +43,10 @@ const ThumbnailPreview = memo(
     const windowWidth = window.innerWidth;
     const previewWidth = 0.4 * windowWidth;
     const { url, x } = hoveredThumbnail;
-
     const adjustedX =
       x + previewWidth > windowWidth
         ? windowWidth - previewWidth - windowWidth / 2
         : x;
-
     return (
       <div
         className="z-50 fixed pointer-events-none shadow-xl rounded-md top-1/10"
@@ -70,14 +66,12 @@ const ThumbnailPreview = memo(
     );
   },
 );
-
 const BooleanTemplate = memo(
   ({ rowData, field }: { rowData: VideoT; field: keyof VideoT }) => {
     const value =
       field == "downloaded"
         ? rowData["downloadStatus"] == "completed"
         : rowData[field];
-
     return (
       <Tag
         pt={{ value: { style: { lineHeight: "1" } } }}
@@ -89,7 +83,6 @@ const BooleanTemplate = memo(
     );
   },
 );
-
 const TagsCell = memo(
   ({
     rowData,
@@ -99,21 +92,18 @@ const TagsCell = memo(
     onTagDoubleClick: (video: VideoT) => void;
   }) => {
     const hoverCtx = useContext(HoverContext);
-
     const handleMouseEnter = (event: React.MouseEvent) => {
       if (!hoverCtx) return;
       const rect = event.currentTarget.getBoundingClientRect();
       hoverCtx.setHoveredThumbnail({
-        url: `${import.meta.env.VITE_FILE_BASE_URL || "http://localhost:8000/api/files/"}${rowData.thumbnailPathId || ""}`,
+        url: `${import.meta.env.VITE_FILE_BASE_URL || "http://localhost:8000/api/files/"}${rowData.thumbnailPathId || ""}?token=${localStorage.getItem("token") || ""}`,
         x: rect.right + 60,
         y: rect.top,
       });
     };
-
     const handleMouseLeave = () => {
       if (hoverCtx) hoverCtx.setHoveredThumbnail(null);
     };
-
     return (
       <div
         className="flex gap-2 cursor-pointer select-none"
@@ -131,7 +121,6 @@ const TagsCell = memo(
     );
   },
 );
-
 const UrlBody = memo(({ rowData }: { rowData: VideoT }) => {
   return (
     <div className="space-x-1">
@@ -152,7 +141,6 @@ const UrlBody = memo(({ rowData }: { rowData: VideoT }) => {
     </div>
   );
 });
-
 function PreviewPortalContainer() {
   const context = useContext(HoverContext);
   const [previewState, setPreviewState] = useState<{
@@ -160,17 +148,14 @@ function PreviewPortalContainer() {
     x: number;
     y: number;
   } | null>(null);
-
   useEffect(() => {
     if (context) {
       (context as any)._registerSetter(setPreviewState);
     }
   }, [context]);
-
   if (!previewState) return null;
   return <ThumbnailPreview hoveredThumbnail={previewState} />;
 }
-
 function TableGrid({
   onTagDoubleClick,
 }: {
@@ -179,7 +164,6 @@ function TableGrid({
   const videos = useVideoStore((state) => state.videos);
   const globalFilter = useVideoStore((state) => state.globalFilter);
   const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     const fetchVideos = async () => {
       try {
@@ -200,9 +184,7 @@ function TableGrid({
     };
     fetchVideos();
   }, []);
-
   const videosData = Object.values(videos).filter(Boolean);
-
   const renderTextInputFilter = useCallback((placeholder: string) => {
     return (options: any) => (
       <InputText
@@ -213,7 +195,6 @@ function TableGrid({
       />
     );
   }, []);
-
   return (
     <DataTable
       value={videosData}
@@ -246,7 +227,8 @@ function TableGrid({
         pt={{ bodyCell: { className: "overflow-visible" } }}
       />
       <Column
-        header="ID"
+        header="Status / ID"
+        style={{ width: "240px", minWidth: "240px", maxWidth: "240px" }}
         body={(rowData) => <ProgressBarOrID rowData={rowData} />}
       />
       <Column
@@ -287,10 +269,8 @@ function TableGrid({
     </DataTable>
   );
 }
-
 function CopyUrlButton({ rowData }: { rowData: VideoT }): JSX.Element {
   const [copied, setCopied] = useState<boolean>(false);
-
   const handleCopy = async (
     e: React.MouseEvent<HTMLButtonElement>,
   ): Promise<void> => {
@@ -298,7 +278,6 @@ function CopyUrlButton({ rowData }: { rowData: VideoT }): JSX.Element {
     try {
       await navigator.clipboard.writeText(rowData.url);
       setCopied(true);
-
       setTimeout(() => {
         setCopied(false);
       }, 1000);
@@ -306,7 +285,6 @@ function CopyUrlButton({ rowData }: { rowData: VideoT }): JSX.Element {
       console.error("Failed to copy text: ", err);
     }
   };
-
   return (
     <Button onClick={handleCopy} className="px-1 py-[2px]">
       <Icon
@@ -316,11 +294,9 @@ function CopyUrlButton({ rowData }: { rowData: VideoT }): JSX.Element {
     </Button>
   );
 }
-
 function HistoryTable() {
   const [visible, setVisible] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<VideoT>();
-
   const [contextValue] = useState(() => {
     let registerSetter: (
       s: {
@@ -342,17 +318,14 @@ function HistoryTable() {
       },
     };
   });
-
   const handleTagDoubleClick = useCallback((video: VideoT) => {
     setSelectedVideo(video);
     setVisible(true);
   }, []);
-
   return (
     <HoverContext.Provider value={contextValue}>
       <div className="relative py-3">
         <Tooltip target=".qqq" mouseTrack mouseTrackLeft={10} />
-
         {selectedVideo && (
           <VideoDialog
             visible={visible}
@@ -360,13 +333,10 @@ function HistoryTable() {
             rowData={selectedVideo}
           />
         )}
-
         <PreviewPortalContainer />
-
         <TableGrid onTagDoubleClick={handleTagDoubleClick} />
       </div>
     </HoverContext.Provider>
   );
 }
-
 export default HistoryTable;
