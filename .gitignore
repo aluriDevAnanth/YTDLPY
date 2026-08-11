@@ -38,3 +38,6 @@ frontend/npm-debug.log*
 frontend/yarn-debug.log*
 frontend/yarn-error.log*
 backend/.env
+
+package_code.ps1
+backend/file
