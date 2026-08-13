@@ -1,5 +1,5 @@
 [project]
-name = "ytdlp-py-gui-backend"
+name = "ytdlpy-backend"
 version = "0.1.0"
 description = "FastAPI + Socket.IO backend for YTDLP-PY-GUI"
 readme = "README.md"

@@ -88,14 +88,14 @@ class BundleManager:
 
     @staticmethod
     async def get_asset_stream(
-        video_id: str,
+        bundle_id: str,
         asset_key: str,
         start_byte: int = 0,
         end_byte: Optional[int] = None,
         chunk_size: int = 1024 * 64,
     ) -> AsyncGenerator[bytes, None]:
         """Async generator streaming decrypted asset slice from .ytdlpy bundle."""
-        bundle_path = BundleManager.get_bundle_path(video_id)
+        bundle_path = BundleManager.get_bundle_path(bundle_id)
         if not bundle_path.exists():
             raise FileNotFoundError(f"Bundle {bundle_path} not found")
         index_table, payload_start = BundleManager.read_index(bundle_path)
