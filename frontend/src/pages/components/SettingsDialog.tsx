@@ -52,7 +52,7 @@ const viewModeOptions = [
 ];
 
 export default function SettingsDialog() {
-  const { isSettingsOpen, setSettingsOpen, settings, setSettings } =
+  const { isSettingsOpen, setSettingsOpen, settings, setSettings, user } =
     useAuthStore();
   const toast = useRef<Toast>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -68,6 +68,7 @@ export default function SettingsDialog() {
   const [cookiesSource, setCookiesSource] = useState<string>("none");
   const [cookiesBrowser, setCookiesBrowser] = useState<string>("chrome");
   const [cookiesTxt, setCookiesTxt] = useState<string>("");
+  const [authStorageMode, setAuthStorageModeState] = useState<"session" | "local">("local");
   const [loading, setLoading] = useState<boolean>(false);
 
   useEffect(() => {
@@ -81,6 +82,7 @@ export default function SettingsDialog() {
       setCookiesSource(settings.cookies_source || "none");
       setCookiesBrowser(settings.cookies_browser || "chrome");
       setCookiesTxt(settings.cookies_txt || "");
+      setAuthStorageModeState(settings.auth_storage_mode || "local");
     }
   }, [settings]);
 
@@ -112,6 +114,7 @@ export default function SettingsDialog() {
         cookies_source: cookiesSource,
         cookies_browser: cookiesBrowser,
         cookies_txt: cookiesTxt,
+        auth_storage_mode: authStorageMode,
       });
       setSettings(res.data);
       toast.current?.show({
@@ -135,69 +138,75 @@ export default function SettingsDialog() {
   return (
     <Dialog
       header={
-        <div className="flex items-center gap-2 font-sans">
-          <Icon icon="tabler:adjustments" className="text-xl text-cyan-400" />
-          <span className="font-semibold text-base text-gray-100">
-            User Preferences & App Settings
-          </span>
+        <div className="flex items-center gap-2.5 font-sans py-0.5">
+          <div className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+            <Icon icon="tabler:adjustments" className="text-xl" />
+          </div>
+          <div className="flex flex-col">
+            <span className="font-bold text-base text-gray-100 tracking-tight">
+              User Preferences & Settings
+            </span>
+            <span className="text-[11px] text-gray-400 font-normal">
+              Configure download defaults, layout preferences, and authentication cookies
+            </span>
+          </div>
         </div>
       }
       visible={isSettingsOpen}
-      style={{ width: "95vw" }}
       onHide={() => setSettingsOpen(false)}
       dismissableMask
       className="font-sans"
     >
       <Toast ref={toast} />
 
-      {/* Multi-Column Wide Grid Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-1 text-sm">
+      <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
         {/* Left Column: Interface Layout & Download Preferences */}
         <div className="flex flex-col gap-4">
           {/* Section 1: Interface Layout */}
-          <div className="flex flex-col gap-3 p-3.5 rounded-lg bg-gray-900/60 border border-gray-800 h-full">
-            <span className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
+          <div className="flex flex-col gap-3.5 p-4 rounded-xl bg-gray-900/80 backdrop-blur-xs border border-gray-800/80 hover:border-gray-700/80 transition-all shadow-xs">
+            <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-2 border-b border-gray-800/80 pb-2">
               <Icon icon="tabler:layout" className="text-cyan-400 text-base" />
-              Interface Layout
+              Interface & View Options
             </span>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-gray-300">
-                Default View Mode
+              <label className="text-xs font-semibold text-gray-200 flex items-center justify-between">
+                <span>Default View Mode</span>
+                <span className="text-[10px] text-cyan-400 font-mono">Startup View</span>
               </label>
               <Dropdown
                 value={defaultViewMode}
                 options={viewModeOptions}
                 onChange={(e) => setDefaultViewMode(e.value)}
-                className="w-full text-xs"
+                className="w-full text-xs bg-gray-950 border-gray-800 rounded-lg"
               />
-              <span className="text-[11px] text-gray-400">
-                Choose the default layout view loaded on startup and login.
+              <span className="text-[11px] text-gray-400 leading-snug">
+                Select your preferred view (Grid vs Table) loaded automatically upon login.
               </span>
             </div>
           </div>
 
           {/* Section 2: Download Options */}
-          <div className="flex flex-col gap-3 p-3.5 rounded-lg bg-gray-900/60 border border-gray-800 h-full">
-            <span className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
+          <div className="flex flex-col gap-3.5 p-4 rounded-xl bg-gray-900/80 backdrop-blur-xs border border-gray-800/80 hover:border-gray-700/80 transition-all shadow-xs">
+            <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-2 border-b border-gray-800/80 pb-2">
               <Icon icon="tabler:download" className="text-cyan-400 text-base" />
-              Download Options
+              Download Engine Preferences
             </span>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-gray-300">
+              <label className="text-xs font-semibold text-gray-200">
                 Default Format Quality
               </label>
               <Dropdown
                 value={defaultFormat}
                 options={formatOptions}
                 onChange={(e) => setDefaultFormat(e.value)}
-                className="w-full text-xs"
+                className="w-full text-xs bg-gray-950 border-gray-800 rounded-lg"
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-gray-300">
+              <label className="text-xs font-semibold text-gray-200">
                 Max Concurrent Downloads
               </label>
               <InputNumber
@@ -210,13 +219,31 @@ export default function SettingsDialog() {
               />
             </div>
 
-            <div className="flex items-center justify-between pt-2 border-t border-gray-800/60">
-              <div className="flex flex-col">
-                <span className="text-xs font-medium text-gray-200">
+            {user?.role !== "admin" ? null : <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-gray-200">
+                Auth Token Storage Mode
+              </label>
+              <Dropdown
+                value={authStorageMode}
+                options={[
+                  { label: "Local Storage (Persistent)", value: "local" },
+                  { label: "Session Storage (Tab-only)", value: "session" },
+                ]}
+                onChange={(e) => setAuthStorageModeState(e.value)}
+                className="w-full text-xs bg-gray-950 border-gray-800 rounded-lg"
+              />
+              <span className="text-[11px] text-gray-400 leading-snug">
+                Local Storage keeps you logged in across browser sessions.
+              </span>
+            </div>}
+
+            <div className="flex items-center justify-between pt-3 border-t border-gray-800/80 mt-1">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs font-semibold text-gray-200">
                   Auto-Generate VTT Player Sprites
                 </span>
                 <span className="text-[11px] text-gray-400">
-                  Build thumbnail frames for video scrub timeline seeking
+                  Create preview thumbnail frames for timeline scrubbing
                 </span>
               </div>
               <InputSwitch
@@ -229,33 +256,33 @@ export default function SettingsDialog() {
 
         {/* Right Column: yt-dlp Cookies & Paywall Authentication */}
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3 p-3.5 rounded-lg bg-gray-900/60 border border-gray-800 h-full">
-            <div className="flex flex-col">
-              <span className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
+          <div className="flex flex-col gap-3.5 p-4 rounded-xl bg-gray-900/80 backdrop-blur-xs border border-gray-800/80 hover:border-gray-700/80 transition-all h-full shadow-xs">
+            <div className="flex flex-col gap-1 border-b border-gray-800/80 pb-2">
+              <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
                 <Icon icon="tabler:cookie" className="text-amber-400 text-base" />
                 yt-dlp Cookies & Authentication
               </span>
-              <span className="text-[11px] text-gray-400 mt-0.5">
-                Bypass age restrictions, bot checks, and member-only paywalls
+              <span className="text-[11px] text-gray-400">
+                Bypass age restrictions, bot verifications, and member paywalls
               </span>
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-gray-300">
+              <label className="text-xs font-semibold text-gray-200">
                 Authentication Method
               </label>
               <Dropdown
                 value={cookiesSource}
                 options={cookieSourceOptions}
                 onChange={(e) => setCookiesSource(e.value)}
-                className="w-full text-xs"
+                className="w-full text-xs bg-gray-950 border-gray-800 rounded-lg"
               />
             </div>
 
             {cookiesSource === "browser" && (
-              <div className="flex flex-col gap-1.5 p-2.5 rounded bg-gray-800/40 border border-gray-700/50">
-                <label className="text-xs font-medium text-gray-300">
-                  Select Installed Desktop Browser
+              <div className="flex flex-col gap-2 p-3 rounded-lg bg-gray-950/70 border border-gray-800">
+                <label className="text-xs font-semibold text-gray-200">
+                  Select Desktop Browser Profile
                 </label>
                 <Dropdown
                   value={cookiesBrowser}
@@ -263,16 +290,16 @@ export default function SettingsDialog() {
                   onChange={(e) => setCookiesBrowser(e.value)}
                   className="w-full text-xs"
                 />
-                <span className="text-[11px] text-gray-400">
-                  yt-dlp will automatically extract session cookies from your local browser profile.
+                <span className="text-[11px] text-gray-400 leading-relaxed">
+                  yt-dlp will automatically read session cookies from your installed browser profile.
                 </span>
               </div>
             )}
 
             {cookiesSource === "custom" && (
-              <div className="flex flex-col gap-2 p-2.5 rounded bg-gray-800/40 border border-gray-700/50">
+              <div className="flex flex-col gap-2.5 p-3 rounded-lg bg-gray-950/70 border border-gray-800">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium text-gray-300">
+                  <label className="text-xs font-semibold text-gray-200">
                     Netscape Format cookies.txt
                   </label>
                   <input
@@ -285,27 +312,27 @@ export default function SettingsDialog() {
                   <Button
                     type="button"
                     severity="secondary"
-                    className="px-2 py-0.5 text-xs h-7 flex items-center gap-1 bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded"
+                    className="px-2.5 py-1 text-xs flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-md"
                     onClick={() => fileInputRef.current?.click()}
                   >
-                    <Icon icon="tabler:file-upload" className="text-sm" />
+                    <Icon icon="tabler:file-upload" className="text-sm text-cyan-400" />
                     <span>Upload .txt</span>
                   </Button>
                 </div>
                 <InputTextarea
                   value={cookiesTxt}
                   onChange={(e) => setCookiesTxt(e.target.value)}
-                  rows={8}
+                  rows={7}
                   placeholder="# Netscape HTTP Cookie File&#10;.youtube.com TRUE / FALSE 1750000000 LOGIN_INFO ..."
-                  className="w-full font-mono text-xs p-2 bg-gray-950 text-gray-200 border border-gray-700 rounded"
+                  className="w-full font-mono text-xs p-2.5 bg-gray-950 text-cyan-300 border border-gray-800 rounded-lg focus:border-cyan-500"
                 />
               </div>
             )}
 
             {cookiesSource === "storage_file" && (
-              <div className="p-2.5 rounded bg-gray-800/30 border border-gray-700/40 text-xs text-gray-300">
-                Uses file stored at{" "}
-                <code className="text-amber-400 font-mono">
+              <div className="p-3 rounded-lg bg-gray-950/70 border border-gray-800 text-xs text-gray-300 leading-relaxed">
+                Uses cookie file stored on server at{" "}
+                <code className="text-amber-400 font-mono bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
                   backend/storage/cookies.txt
                 </code>
                 .
@@ -315,12 +342,11 @@ export default function SettingsDialog() {
         </div>
       </div>
 
-      {/* Footer Action Bar */}
-      <div className="flex items-center justify-end gap-2 pt-3 mt-2 border-t border-gray-800">
+      <div className="shrink-0 py-2 flex items-center justify-end gap-2.5 border-t border-gray-800/80">
         <Button
           label="Cancel"
           severity="secondary"
-          className="p-button-sm px-3 py-1.5 text-xs"
+          className="p-button-sm px-4 py-1.5 text-xs rounded-lg"
           onClick={() => setSettingsOpen(false)}
         />
         <Button
@@ -328,7 +354,7 @@ export default function SettingsDialog() {
           icon="pi pi-check"
           loading={loading}
           severity="success"
-          className="p-button-sm px-3 py-1.5 text-xs font-medium"
+          className="p-button-sm px-4 py-1.5 text-xs font-semibold rounded-lg shadow-sm"
           onClick={handleSave}
         />
       </div>

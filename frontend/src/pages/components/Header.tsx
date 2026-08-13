@@ -12,12 +12,7 @@ import DownloadForm from "./DownloadForm";
 import SettingsDialog from "./SettingsDialog";
 import ThemeSwitcher from "./ThemeSwitcher";
 
-interface HeaderProps {
-  onRestart?: () => void;
-  isRestarting?: boolean;
-}
-
-function Header({ onRestart, isRestarting }: HeaderProps) {
+function Header() {
   const { user, logout, setSettingsOpen, setAdminOpen } = useAuthStore();
   const [visible, setVisible] = useState(false);
   const viewMode = useVideoStore((state) => state.viewMode);
@@ -120,17 +115,6 @@ function Header({ onRestart, isRestarting }: HeaderProps) {
                 tooltip="Settings"
               >
                 <Icon icon="tabler:settings" className="text-base" />
-              </Button>
-
-              <Button
-                onClick={onRestart}
-                disabled={isRestarting}
-                severity="danger"
-                outlined
-                className="p-button-sm !p-1"
-                tooltip="Restart Backend"
-              >
-                <Icon icon="tabler:refresh" className="text-base" />
               </Button>
 
               <ThemeSwitcher />
@@ -238,18 +222,6 @@ function Header({ onRestart, isRestarting }: HeaderProps) {
               tooltipOptions={{ position: "bottom" }}
             >
               <Icon icon="tabler:settings" className="text-lg" />
-            </Button>
-
-            <Button
-              onClick={onRestart}
-              disabled={isRestarting}
-              severity="danger"
-              outlined
-              className="p-button-sm p-1.5"
-              tooltip="Restart Backend Server"
-              tooltipOptions={{ position: "bottom" }}
-            >
-              <Icon icon="tabler:refresh" className="text-lg" />
             </Button>
 
             <ThemeSwitcher />
