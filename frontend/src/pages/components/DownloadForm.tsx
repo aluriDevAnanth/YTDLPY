@@ -71,10 +71,6 @@ export default function DownloadForm() {
       prevWatchTime: 0,
       format: data.format,
       type: data.type,
-      videoPathId: "",
-      thumbnailPathId: "",
-      vttPathId: "",
-      vttSpritePathId: "",
     };
     const config = {
       method: "post",
