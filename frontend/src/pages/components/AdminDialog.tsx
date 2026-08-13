@@ -174,7 +174,7 @@ export default function AdminDialog() {
             className="flex flex-col gap-4 py-2"
           >
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-semibold">Username</label>
+              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Username</label>
               <InputText
                 value={newUsername}
                 onChange={(e) => setNewUsername(e.target.value)}
@@ -182,7 +182,7 @@ export default function AdminDialog() {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-semibold">Password</label>
+              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Password</label>
               <InputText
                 type="password"
                 value={newPassword}
@@ -191,7 +191,7 @@ export default function AdminDialog() {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-semibold">Role</label>
+              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Role</label>
               <Dropdown
                 value={newRole}
                 options={roleOptions}

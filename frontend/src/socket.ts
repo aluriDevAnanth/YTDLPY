@@ -1,4 +1,5 @@
 import { io, Socket } from "socket.io-client";
+import { getAuthToken } from "./store/useAppStore";
 const URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:8000";
 export const socket: Socket = io(URL, {
   transports: ["websocket"],
@@ -6,6 +7,6 @@ export const socket: Socket = io(URL, {
   reconnectionDelay: 1000,
   autoConnect: false,
   auth: (cb) => {
-    cb({ token: localStorage.getItem("token") });
+    cb({ token: getAuthToken() });
   },
 });

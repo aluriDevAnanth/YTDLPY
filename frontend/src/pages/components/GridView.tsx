@@ -6,30 +6,31 @@ import { ContextMenu } from "primereact/contextmenu";
 import { Dialog } from "primereact/dialog";
 import { Menu } from "primereact/menu";
 import type { MenuItem } from "primereact/menuitem";
-import { Tag } from "primereact/tag";
 import { Toast } from "primereact/toast";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import ReactJson from "react-json-view";
 import useVideoStore from "src/context/videoStore";
 import type { VideoT } from "src/schema";
+import { getAuthToken } from "src/store/useAppStore";
+import LogViewerDialog from "./LogViewerDialog";
 import VideoDialog from "./VideoDialog";
 
 const API_BASE = import.meta.env.VITE_SOCKET_URL || "http://localhost:8000";
 
 const SkeletonCard = memo(() => (
-  <div className="flex flex-col bg-gray-900 border border-gray-800/80 rounded-xl overflow-hidden shadow-sm animate-pulse">
+  <div className="flex flex-col bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800/80 rounded-xl overflow-hidden shadow-xs hover:shadow-sm animate-pulse">
     {/* 16:9 Thumbnail Skeleton Box with Vibrant Gradient Shimmer */}
-    <div className="relative w-full aspect-video bg-gray-800/90 flex items-center justify-center overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-r from-gray-800 via-gray-700/80 to-gray-800 animate-pulse" />
-      <Icon icon="tabler:video" className="relative z-10 text-3xl text-gray-500/80 animate-pulse" />
+    <div className="relative w-full aspect-video bg-gray-100 dark:bg-gray-800/90 flex items-center justify-center overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 dark:from-gray-800 dark:via-gray-700/80 dark:to-gray-800 animate-pulse" />
+      <Icon icon="tabler:video" className="relative z-10 text-3xl text-gray-400 dark:text-gray-500/80 animate-pulse" />
     </div>
 
     {/* Details Skeleton Lines */}
     <div className="flex flex-col p-2.5 gap-2">
-      <div className="h-3.5 w-4/5 bg-gray-700/80 rounded-xs animate-pulse" />
+      <div className="h-3.5 w-4/5 bg-gray-300 dark:bg-gray-700/80 rounded-xs animate-pulse" />
       <div className="flex items-center justify-between pt-1">
-        <div className="h-2.5 w-1/3 bg-gray-700/60 rounded-xs animate-pulse" />
-        <div className="h-3 w-8 bg-gray-700/70 rounded-xs animate-pulse" />
+        <div className="h-2.5 w-1/3 bg-gray-200 dark:bg-gray-700/60 rounded-xs animate-pulse" />
+        <div className="h-3 w-8 bg-gray-200 dark:bg-gray-700/70 rounded-xs animate-pulse" />
       </div>
     </div>
   </div>
@@ -86,10 +87,8 @@ const VideoCard = memo(
 
     const fileBaseUrl =
       import.meta.env.VITE_FILE_BASE_URL || "http://localhost:8000/api/files/";
-    const token = localStorage.getItem("token") || "";
-    const thumbnailUrl = video.thumbnailPathId
-      ? `${fileBaseUrl}${video.thumbnailPathId}?token=${token}`
-      : "";
+    const token = getAuthToken() || "";
+    const thumbnailUrl = `${fileBaseUrl}${video.id}_thumbnail?token=${token}`;
 
     const isCompleted =
       video.downloadStatus === "completed" && thumbnailUrl && !imgError;
@@ -98,7 +97,7 @@ const VideoCard = memo(
     return (
       <div
         onContextMenu={(e) => onOpenContextMenu(e, video)}
-        className="group flex flex-col bg-gray-900/70 hover:bg-gray-850 border border-gray-800/80 hover:border-gray-700 rounded-xl overflow-hidden shadow-xs hover:shadow-md transition-all duration-200"
+        className="group flex flex-col bg-white dark:bg-gray-900/70 hover:bg-slate-50 dark:hover:bg-transparent border border-gray-200 dark:border-gray-800/80 hover:border-gray-300 dark:hover:border-gray-700 rounded-xl overflow-hidden shadow-xs hover:shadow-md transition-all duration-200"
       >
         {/* Video Dialog */}
         {playVisible && (
@@ -111,7 +110,7 @@ const VideoCard = memo(
 
         {/* Thumbnail or Download Progress Container */}
         <div
-          className="relative w-full aspect-video bg-gray-950 overflow-hidden cursor-pointer select-none"
+          className="relative w-full aspect-video bg-gray-100 dark:bg-gray-950 overflow-hidden cursor-pointer select-none"
           onClick={() => isCompleted && setPlayVisible(true)}
         >
           {isCompleted ? (
@@ -131,7 +130,7 @@ const VideoCard = memo(
             </>
           ) : (
             /* Thumbnail Progress Overlay with YTDLnis Card-Wide Fill & Shimmer */
-            <div className="relative w-full h-full p-2 flex flex-col justify-between bg-gradient-to-br from-gray-900 via-gray-950 to-gray-900 border-b border-gray-800/60 overflow-hidden">
+            <div className="relative w-full h-full p-2 flex flex-col justify-between bg-gradient-to-br from-slate-100 via-slate-200 to-slate-100 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 border-b border-gray-200 dark:border-gray-800/60 overflow-hidden">
               {/* Pulsing Skeleton Shimmer Layer */}
               <div className="absolute inset-0 bg-gradient-to-r from-cyan-900/30 via-cyan-500/20 to-cyan-900/30 animate-pulse pointer-events-none z-0" />
 
@@ -141,7 +140,7 @@ const VideoCard = memo(
                 style={{ width: `${Math.max(displayPercent, 0)}%` }}
               />
 
-              <div className="relative z-10 flex items-center justify-between text-[11px] font-mono text-cyan-400">
+              <div className="relative z-10 flex items-center justify-between text-[11px] font-mono text-cyan-600 dark:text-cyan-400">
                 <span className="flex items-center gap-1.5 font-medium">
                   <Icon
                     icon={
@@ -149,7 +148,7 @@ const VideoCard = memo(
                         ? "tabler:movie"
                         : "tabler:download"
                     }
-                    className="text-cyan-400 animate-pulse text-sm"
+                    className="text-cyan-600 dark:text-cyan-400 animate-pulse text-sm"
                   />
                   {video.downloadStatus === "generating_sprites"
                     ? "Generating Sprites..."
@@ -157,7 +156,7 @@ const VideoCard = memo(
                       ? "Queued..."
                       : "Downloading..."}
                 </span>
-                <span className="font-bold text-xs text-white">
+                <span className="font-bold text-xs text-gray-900 dark:text-white">
                   {displayPercent > 0 ? `${displayPercent.toFixed(1)}%` : "0.0%"}
                 </span>
               </div>
@@ -176,17 +175,8 @@ const VideoCard = memo(
           {/* Top Badges (Status & Watched) */}
           <div className="absolute top-1.5 left-1.5 flex items-center gap-1 z-10 pointer-events-none">
             {video.watched && (
-              <Tag
-                value="WATCHED"
-                severity="success"
-                className="text-[8px] font-mono py-0 px-1 shadow-xs"
-              />
-            )}
-            {video.downloadStatus === "completed" && (
-              <Tag
-                value="DOWNLOADED"
-                severity="info"
-                className="text-[8px] font-mono py-0 px-1 shadow-xs"
+              <Icon icon="tabler:eye" fontSize={24}
+                className="text-cyan-400 drop-shadow-md p-1 bg-black/50 rounded-lg"
               />
             )}
           </div>
@@ -207,28 +197,28 @@ const VideoCard = memo(
         </div>
 
         {/* Compact Card Body */}
-        <div className="flex flex-col px-2 py-2 gap-1.5 grow justify-between">
+        <div className="flex flex-col px-2.5 py-2 gap-1.5 grow justify-between bg-white dark:bg-transparent">
           <div className="flex flex-col gap-0.5">
             <span
               onClick={() => isCompleted && setPlayVisible(true)}
-              className="text-xs font-semibold text-gray-100 line-clamp-1 hover:text-cyan-400 cursor-pointer transition-colors leading-tight"
+              className="text-xs font-semibold text-gray-900 dark:text-gray-100 line-clamp-1 hover:text-cyan-600 dark:hover:text-cyan-400 cursor-pointer transition-colors leading-tight"
               title={video.fullTitle || video.url}
             >
               {video.fullTitle || video.url}
             </span>
 
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1 text-[10px] text-gray-400 font-mono">
+              <div className="flex items-center gap-1 text-[10px] text-gray-600 dark:text-gray-400 font-mono">
                 {video.size && <span className="truncate">📦 {video.size}</span>}
                 {video.format && (
-                  <span className="uppercase text-gray-500">• {video.format}</span>
+                  <span className="uppercase text-gray-500 dark:text-gray-500">• {video.format}</span>
                 )}
               </div>
               <div className="flex items-center gap-1.5">
                 <Icon
                   onClick={(e) => onCopyUrl(e, video)}
                   icon={isCopied ? "tabler:check" : "tabler:copy"}
-                  className={`text-sm ${isCopied ? "text-emerald-400" : "text-gray-400 hover:text-white"} transition-colors cursor-pointer`}
+                  className={`text-sm ${isCopied ? "text-emerald-600 dark:text-emerald-400" : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"} transition-colors cursor-pointer`}
                 />
                 <Button
                   type="button"
@@ -236,7 +226,7 @@ const VideoCard = memo(
                   text
                   severity="secondary"
                   onClick={(e) => onOpenMenuButton(e, video)}
-                  className="!p-[1px]  text-gray-400 hover:text-white"
+                  className="!p-[1px] text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
                   title="Options Menu"
                 >
                   <Icon icon="tabler:dots-vertical" className="text-sm" />
@@ -257,29 +247,30 @@ export default function YoutubeGridView() {
   const globalFilter = useVideoStore((state) => state.globalFilter);
   const fetchVideos = useVideoStore((state) => state.fetchVideos);
   const removeVideo = useVideoStore((state) => state.removeVideo);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => Object.keys(videos).length === 0);
 
   const [activeVideo, setActiveVideo] = useState<VideoT | null>(null);
   const [playVideo, setPlayVideo] = useState<VideoT | null>(null);
   const [infoVideo, setInfoVideo] = useState<VideoT | null>(null);
+  const [logVideo, setLogVideo] = useState<VideoT | null>(null);
   const [copiedVideoId, setCopiedVideoId] = useState<string | null>(null);
 
   const menuRef = useRef<Menu>(null);
   const contextMenuRef = useRef<ContextMenu>(null);
 
   useEffect(() => {
-    if (token) {
+    if (token && Object.keys(videos).length === 0) {
       fetchVideos().finally(() => setLoading(false));
     } else {
       setLoading(false);
     }
-  }, [token, fetchVideos]);
+  }, [token, fetchVideos, videos]);
 
   const handleDownload = (video: VideoT) => {
     const config: AxiosRequestConfig<object> = {
       method: "get",
       maxBodyLength: Infinity,
-      url: `http://localhost:8000/api/files/${video.videoPathId}`,
+      url: `http://localhost:8000/api/files/${video.id}_video`,
       responseType: "blob",
     };
     axios
@@ -325,6 +316,11 @@ export default function YoutubeGridView() {
       label: "View Metadata Info",
       icon: "pi pi-info-circle",
       command: () => activeVideo && setInfoVideo(activeVideo),
+    },
+    {
+      label: "View Execution Logs",
+      icon: "pi pi-file",
+      command: () => activeVideo && setLogVideo(activeVideo),
     },
     {
       label: "Copy Video Link",
@@ -402,7 +398,7 @@ export default function YoutubeGridView() {
   }
 
   return (
-    <div className="w-full py-2 grow">
+    <div className="w-full grow">
       <Toast ref={toast} />
 
       {/* Shared Single Instance Menus */}
@@ -434,6 +430,14 @@ export default function YoutubeGridView() {
             />
           </div>
         </Dialog>
+      )}
+
+      {logVideo && (
+        <LogViewerDialog
+          visible={!!logVideo}
+          setVisible={(val) => !val && setLogVideo(null)}
+          video={logVideo}
+        />
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 sm:gap-3 w-full">

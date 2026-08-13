@@ -1,4 +1,4 @@
-import HistoryTable from "./components/HistoryTable";
+import TableView from "./components/TableView";
 import AdminDashboard from "./components/AdminDashboard";
 import { useAuthStore } from "../context/authStore";
 export default function Home() {
@@ -6,5 +6,5 @@ export default function Home() {
   if (user?.role === "admin") {
     return <AdminDashboard />;
   }
-  return <HistoryTable />;
+  return <TableView />;
 }
