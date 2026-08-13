@@ -17,6 +17,7 @@ MEDIA_TYPES = {
     "thumbnail": "image/jpeg",
     "vtt": "text/vtt",
     "vtt_sprite": "image/jpeg",
+    "log": "application/x-ndjson",
 }
 
 
@@ -46,7 +47,7 @@ async def stream_file(
     video_id = None
     asset_key = None
     sprite_chunk_match = re.search(
-        r"^(.*?)(_(vtt_sprite_\d+|vtt_sprite|thumbnail|video|vtt))$", clean_file_id
+        r"^(.*?)(_(vtt_sprite_\d+|vtt_sprite|thumbnail|video|vtt|log))$", clean_file_id
     )
     if sprite_chunk_match:
         video_id = sprite_chunk_match.group(1)
@@ -62,7 +63,12 @@ async def stream_file(
     if not video:
         raise HTTPException(status_code=404, detail="File not found")
     auth_user = await authenticate_file_access(request, session)
-    if auth_user and auth_user.id != video.userId and auth_user.role != "admin":
+    if not auth_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication token required to access media files",
+        )
+    if auth_user.id != video.userId and auth_user.role != "admin":
         raise HTTPException(status_code=403, detail="Access denied to this file")
     target_bundle_id = video.bundleId if video.bundleId else video_id
     bundle_path = BundleManager.get_bundle_path(target_bundle_id)
@@ -102,11 +108,33 @@ async def stream_file(
                 "Access-Control-Allow-Headers": "*",
             }
             stream = BundleManager.get_asset_stream(
-                video_id, asset_key, start_byte=start, end_byte=end
+                target_bundle_id, asset_key, start_byte=start, end_byte=end
             )
             return StreamingResponse(
                 stream, status_code=206, headers=headers, media_type=media_type
             )
+    if asset_key == "vtt":
+        token_val = request.query_params.get("token") or ""
+        raw_vtt_chunks = []
+        async for chunk in BundleManager.get_asset_stream(target_bundle_id, asset_key):
+            raw_vtt_chunks.append(chunk)
+        vtt_content = b"".join(raw_vtt_chunks).decode("utf-8", errors="replace")
+        if token_val:
+            vtt_content = re.sub(
+                r"(_vtt_sprite_\d+\.jpg)",
+                rf"\1?token={token_val}",
+                vtt_content,
+            )
+        vtt_bytes = vtt_content.encode("utf-8")
+        headers = {
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(len(vtt_bytes)),
+            "Content-Type": "text/vtt",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "*",
+        }
+        return Response(content=vtt_bytes, status_code=200, headers=headers, media_type="text/vtt")
+
     headers = {
         "Accept-Ranges": "bytes",
         "Content-Length": str(file_size),
@@ -114,7 +142,7 @@ async def stream_file(
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers": "*",
     }
-    stream = BundleManager.get_asset_stream(video_id, asset_key)
+    stream = BundleManager.get_asset_stream(target_bundle_id, asset_key)
     return StreamingResponse(
         stream, status_code=200, headers=headers, media_type=media_type
     )

@@ -14,7 +14,7 @@ from src.routes.auth_route import router as auth_router
 from src.routes.admin_route import router as admin_router
 from src.routes.video_route import router as video_router
 from src.routes.files_route import router as files_router
-from src.routes.system_route import router as system_router
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     log_success("Launching YTDLP-PY-GUI Backend Services...")
@@ -40,7 +40,6 @@ app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(video_router)
 app.include_router(files_router)
-app.include_router(system_router)
 app_asgi = socketio.ASGIApp(sio, app)
 if __name__ == "__main__":
     uvicorn.run("main:app_asgi", host="0.0.0.0", port=8000, reload=True, reload_dirs=["src"], reload_includes=["*.py"])

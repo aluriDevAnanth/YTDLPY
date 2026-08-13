@@ -9,7 +9,7 @@ from src.crypto import get_password_hash
 from src.logger import log_success
 from src.models import User, UserSettings
 
-engine = create_async_engine(DB_URL, echo=False, future=True)
+engine = create_async_engine(DB_URL, echo=False, future=True,connect_args={"check_same_thread": False, "uri": True})
 async_session_maker = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
@@ -19,9 +19,11 @@ async def init_db():
         from sqlalchemy import text
 
         for col_name, col_type in [
+            ("default_view_mode", "TEXT DEFAULT 'grid'"),
             ("cookies_source", "TEXT DEFAULT 'none'"),
             ("cookies_browser", "TEXT DEFAULT 'chrome'"),
             ("cookies_txt", "TEXT DEFAULT NULL"),
+            ("auth_storage_mode", "TEXT DEFAULT 'local'"),
         ]:
             try:
                 await conn.execute(
@@ -47,9 +49,9 @@ async def init_db():
             if env_mode in ["production", "prod"]:
                 admin_password = secrets.token_urlsafe(16)
                 log_success(
-                    f"🔒 PRODUCTION MODE DETECTED: Created default 'admin' account with password: {admin_password}"
+                    f"🔒 PRODUCTION MODE DETECTED: Created default 'admin' account with password: {admin_password}" 
                 )
-            else:
+            else :
                 admin_password = "admin123"
                 log_success(
                     "🛠️ DEV MODE DETECTED: Created default 'admin' account with password: admin123"

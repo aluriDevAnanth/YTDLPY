@@ -1,6 +1,7 @@
 import asyncio
 import os
 import shutil
+import time
 import zipfile
 from pathlib import Path
 
@@ -32,6 +33,29 @@ def get_ffprobe_path() -> str:
     return str(ffprobe_exe)
 
 
+def format_size(bytes_val: float) -> str:
+    if not bytes_val or bytes_val <= 0:
+        return "0 B"
+    if bytes_val < 1024 * 1024:
+        return f"{bytes_val / 1024:.1f} KiB"
+    elif bytes_val < 1024 * 1024 * 1024:
+        return f"{bytes_val / (1024 * 1024):.1f} MiB"
+    else:
+        return f"{bytes_val / (1024 * 1024 * 1024):.1f} GiB"
+
+
+def format_eta(seconds: float) -> str:
+    if not seconds or seconds <= 0:
+        return "0s"
+    if seconds < 60:
+        return f"{int(seconds)}s"
+    m, s = divmod(int(seconds), 60)
+    h, m = divmod(m, 60)
+    if h > 0:
+        return f"{h}h {m}m {s}s"
+    return f"{m}m {s}s"
+
+
 async def ensure_ffmpeg_installed():
     """Checks for FFmpeg; downloads and extracts if missing with live startup progress."""
     ffmpeg_exe = Path(get_ffmpeg_path())
@@ -48,19 +72,54 @@ async def ensure_ffmpeg_installed():
             async with client.stream("GET", FFMPEG_WIN_URL) as response:
                 total_bytes = int(response.headers.get("content-length", 0))
                 downloaded = 0
-                last_percent = -1
+                start_time = time.time()
+                last_update_time = 0.0
+
                 with open(zip_file, "wb") as f:
                     async for chunk in response.aiter_bytes(chunk_size=1024 * 64):
                         f.write(chunk)
                         downloaded += len(chunk)
-                        if total_bytes > 0:
-                            percent = int((downloaded / total_bytes) * 100)
-                            if percent != last_percent and percent % 5 == 0:
-                                last_percent = percent
-                                await send_startup_event(
-                                    f"Downloading FFmpeg binaries ({percent}%)...",
-                                    "ongoing",
-                                )
+                        now = time.time()
+
+                        if now - last_update_time >= 0.2 or (
+                            total_bytes > 0 and downloaded == total_bytes
+                        ):
+                            last_update_time = now
+                            elapsed = now - start_time
+                            speed = downloaded / elapsed if elapsed > 0 else 0.0
+
+                            if total_bytes > 0:
+                                percent = (downloaded / total_bytes) * 100
+                                percent_per_sec = (speed / total_bytes) * 100
+                                remaining_bytes = total_bytes - downloaded
+                                eta_sec = remaining_bytes / speed if speed > 0 else 0.0
+
+                                progress = {
+                                    "percent": round(percent, 1),
+                                    "speed": f"{format_size(speed)}/s",
+                                    "percentPerSec": f"{percent_per_sec:.1f}%/s",
+                                    "eta": format_eta(eta_sec),
+                                    "downloadedSize": format_size(downloaded),
+                                    "totalSize": format_size(total_bytes),
+                                }
+                                message = "Downloading FFmpeg binaries..."
+                            else:
+                                progress = {
+                                    "percent": 0.0,
+                                    "speed": f"{format_size(speed)}/s",
+                                    "percentPerSec": "0.0%/s",
+                                    "eta": "N/A",
+                                    "downloadedSize": format_size(downloaded),
+                                    "totalSize": "Unknown",
+                                }
+                                message = "Downloading FFmpeg binaries..."
+
+                            await send_startup_event(
+                                message=message,
+                                typee="ongoing",
+                                progress=progress,
+                            )
+
         await send_startup_event("Extracting FFmpeg binaries...", "ongoing")
 
         def extract_zip():
@@ -84,3 +143,4 @@ async def ensure_ffmpeg_installed():
     except Exception as e:
         log_error("Failed to download FFmpeg", e)
         await send_startup_event(f"FFmpeg download failed: {str(e)}", "error")
+

@@ -22,8 +22,21 @@ test_engine = create_async_engine(
 test_async_session = sessionmaker(
     test_engine, class_=AsyncSession, expire_on_commit=False
 )
+import tempfile
+from pathlib import Path
+
+_test_temp_bundles = tempfile.TemporaryDirectory()
+_test_temp_dir = tempfile.TemporaryDirectory()
+
+import src.config
 import src.db
 import src.VideoDownloader
+import src.cleanup_worker
+
+src.config.BUNDLES_DIR = Path(_test_temp_bundles.name)
+src.config.TEMP_DIR = Path(_test_temp_dir.name)
+src.cleanup_worker.BUNDLES_DIR = Path(_test_temp_bundles.name)
+src.cleanup_worker.TEMP_DIR = Path(_test_temp_dir.name)
 
 src.db.engine = test_engine
 src.db.async_session_maker = test_async_session
