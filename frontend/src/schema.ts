@@ -25,10 +25,10 @@ export const VideoS = z.object({
   watched: z.boolean(),
   downloaded: z.boolean(),
   prevWatchTime: z.number(),
-  videoPathId: z.string(),
-  thumbnailPathId: z.string(),
-  vttPathId: z.string(),
-  vttSpritePathId: z.string(),
+  videoPathId: z.string().optional(),
+  thumbnailPathId: z.string().optional(),
+  vttPathId: z.string().optional(),
+  vttSpritePathId: z.string().optional(),
   ...DownloadFormS.shape,
 });
 export type VideoT = z.infer<typeof VideoS>;
