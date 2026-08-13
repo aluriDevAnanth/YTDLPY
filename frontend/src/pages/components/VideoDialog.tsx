@@ -18,6 +18,7 @@ import "@vidstack/react/player/styles/default/theme.css";
 import axios from "axios";
 import { Dialog } from "primereact/dialog";
 import { type Dispatch, type SetStateAction, useEffect, useRef, useState } from "react";
+import { getAuthToken } from "src/store/useAppStore";
 import useVideoStore from "src/context/videoStore";
 import type { VideoT } from "src/schema";
 
@@ -194,7 +195,7 @@ function VideoDialog({
         ref={player}
         currentTime={rowData.prevWatchTime || 0}
         src={{
-          src: "http://localhost:8000/api/files/" + rowData.videoPathId + "?token=" + (localStorage.getItem("token") || ""),
+          src: "http://localhost:8000/api/files/" + rowData.id + "_video?token=" + (getAuthToken() || ""),
           type: "video/mp4",
         }}
         viewType="video"
@@ -205,7 +206,7 @@ function VideoDialog({
         title={rowData.fullTitle}
         poster={
           rowData.prevWatchTime == 0
-            ? "http://localhost:8000/api/files/" + rowData.thumbnailPathId + "?token=" + (localStorage.getItem("token") || "")
+            ? "http://localhost:8000/api/files/" + rowData.id + "_thumbnail?token=" + (getAuthToken() || "")
             : undefined
         }
         onPlay={markAsWatched}
@@ -264,7 +265,7 @@ function VideoDialog({
         <DefaultVideoLayout
           showTooltipDelay={300}
           seekStep={5}
-          thumbnails={"http://localhost:8000/api/files/" + (rowData.vttPathId ? rowData.vttPathId + ".vtt" : rowData.id + "_vtt.vtt") + "?token=" + (localStorage.getItem("token") || "")}
+          thumbnails={"http://localhost:8000/api/files/" + rowData.id + "_vtt.vtt?token=" + (getAuthToken() || "")}
           download
           icons={defaultLayoutIcons}
           slots={{
