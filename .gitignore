@@ -41,3 +41,5 @@ backend/.env
 
 package_code.ps1
 backend/file
+scratch/
+
