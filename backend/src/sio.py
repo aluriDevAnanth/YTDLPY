@@ -25,12 +25,13 @@ async def connect(sid, environ, auth=None):
         if payload:
             user_id = payload.get("sub")
             role = payload.get("role")
-    if user_id:
-        sid_user_map[sid] = user_id
-        room = f"user_{user_id}"
-        await sio.enter_room(sid, room)
-        if role == "admin":
-            await sio.enter_room(sid, "admin_room")
+    if not user_id:
+        raise ConnectionRefusedError("Authentication token missing or invalid")
+    sid_user_map[sid] = user_id
+    room = f"user_{user_id}"
+    await sio.enter_room(sid, room)
+    if role == "admin":
+        await sio.enter_room(sid, "admin_room")
     await sio.emit(
         "startupp",
         {
@@ -50,13 +51,18 @@ async def disconnect(sid):
 
 
 async def send_startup_event(
-    message: str, typee: str = "ongoing", user_id: str = None, sid: str = None
+    message: str,
+    typee: str = "ongoing",
+    user_id: str = None,
+    sid: str = None,
+    progress: dict = None,
 ):
     data = {
         "sseType": "startupp",
         "dataID": "startupp",
         "message": message,
         "typee": typee,
+        "progress": progress,
     }
     if sid:
         await sio.emit("startupp", data, room=sid)
