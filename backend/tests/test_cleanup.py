@@ -1,17 +1,17 @@
 from pathlib import Path
 
 import pytest
+import src.config as config
 import src.db as db
 from sqlmodel import select
 from src.cleanup_worker import run_storage_cleanup
-from src.config import BUNDLES_DIR
 from src.models import Video
 
 
 @pytest.mark.asyncio
 async def test_storage_cleanup_orphaned_bundles(seed_users):
-    BUNDLES_DIR.mkdir(parents=True, exist_ok=True)
-    orphaned_path = BUNDLES_DIR / "orphaned_test_id.adaumc"
+    config.BUNDLES_DIR.mkdir(parents=True, exist_ok=True)
+    orphaned_path = config.BUNDLES_DIR / "orphaned_test_id.adaumc"
     orphaned_path.write_bytes(b"YTPY_ORPHANED_HEADER_TEST")
     assert orphaned_path.exists()
     await run_storage_cleanup()
