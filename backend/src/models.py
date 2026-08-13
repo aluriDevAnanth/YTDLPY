@@ -16,12 +16,14 @@ class User(SQLModel, table=True):
 class UserSettings(SQLModel, table=True):
     user_id: str = Field(primary_key=True, foreign_key="user.id")
     default_format: str = "BEST"
+    default_view_mode: str = "grid"
     max_concurrent_downloads: int = 3
     auto_generate_vtt: bool = True
     theme: str = "dark"
     cookies_source: str = "none"
     cookies_browser: Optional[str] = "chrome"
     cookies_txt: Optional[str] = None
+    auth_storage_mode: str = "local"
 
 
 class Video(SQLModel, table=True):
@@ -41,10 +43,6 @@ class Video(SQLModel, table=True):
     prevWatchTime: float = 0.0
     format: str = "BEST"
     type: str = "download"
-    videoPathId: str = ""
-    thumbnailPathId: str = ""
-    vttPathId: str = ""
-    vttSpritePathId: str = ""
 
 
 class Token(SQLModel):
@@ -79,9 +77,18 @@ class LoginRequest(SQLModel):
 
 class UserSettingsUpdate(SQLModel):
     default_format: Optional[str] = None
+    default_view_mode: Optional[str] = None
     max_concurrent_downloads: Optional[int] = None
     auto_generate_vtt: Optional[bool] = None
     theme: Optional[str] = None
     cookies_source: Optional[str] = None
     cookies_browser: Optional[str] = None
     cookies_txt: Optional[str] = None
+    auth_storage_mode: Optional[str] = None
+
+
+class StorageCleanRequest(SQLModel):
+    clean_watched: Optional[bool] = False
+    clear_all: Optional[bool] = False
+    video_ids: Optional[list[str]] = None
+
