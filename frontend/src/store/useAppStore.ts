@@ -2,7 +2,7 @@ import axios from "axios";
 import { create } from "zustand";
 import { createJSONStorage, devtools, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
-import type { VideoProgressT, VideoT } from "../schema";
+import type { PlaylistT, VideoProgressT, VideoT } from "../schema";
 export interface UserSettings {
   user_id: string;
   default_format: "BEST" | "BESTAUDIO" | "WORST";
@@ -31,8 +31,8 @@ export interface UserStorageStats {
 
 export const getAuthStorageMode = (): "session" | "local" => {
   return (
-    (localStorage.getItem("auth_storage_mode") as "session" | "local") ||
     (sessionStorage.getItem("auth_storage_mode") as "session" | "local") ||
+    (localStorage.getItem("auth_storage_mode") as "session" | "local") ||
     "local"
   );
 };
@@ -45,9 +45,9 @@ export const setAuthStorageMode = (mode: "session" | "local") => {
 export const getAuthToken = (): string | null => {
   const mode = getAuthStorageMode();
   if (mode === "session") {
-    return sessionStorage.getItem("token") || localStorage.getItem("token");
+    return sessionStorage.getItem("token");
   } else {
-    return localStorage.getItem("token") || sessionStorage.getItem("token");
+    return localStorage.getItem("token");
   }
 };
 
@@ -71,9 +71,10 @@ export const removeAuthToken = () => {
 const dynamicStorage = createJSONStorage(() => ({
   getItem: (name: string) => {
     const mode = getAuthStorageMode();
-    const primary = mode === "session" ? sessionStorage : localStorage;
-    const fallback = mode === "session" ? localStorage : sessionStorage;
-    return primary.getItem(name) || fallback.getItem(name);
+    if (mode === "session") {
+      return sessionStorage.getItem(name);
+    }
+    return localStorage.getItem(name);
   },
   setItem: (name: string, value: string) => {
     const mode = getAuthStorageMode();
@@ -113,10 +114,14 @@ export interface StartupSSE {
   dataID: string;
   progress?: StartupProgress;
 }
+export type ActivePage = "downloads" | "admin" | "toast-tester";
+
 interface AppState {
   token: string | null;
   user: User | null;
   settings: UserSettings | null;
+  activePage: ActivePage;
+  setActivePage: (page: ActivePage) => void;
   isAuthOpen: boolean;
   isAdminOpen: boolean;
   isSettingsOpen: boolean;
@@ -124,6 +129,9 @@ interface AppState {
   storageStats: UserStorageStats | null;
   videos: Record<string, VideoT>;
   videoProgress: Record<string, VideoProgressT>;
+  playlists: PlaylistT[];
+  activePlaylistId: string | null;
+  isPlaylistManagerOpen: boolean;
   globalFilter: string;
   viewMode: "table" | "grid";
   startupp: StartupSSE | null;
@@ -150,7 +158,18 @@ interface AppState {
   setViewMode: (mode: "table" | "grid") => void;
   setVideos: (videos: VideoT[]) => void;
   fetchVideos: () => Promise<void>;
+  pauseVideo: (videoId: string) => Promise<void>;
+  resumeVideo: (videoId: string) => Promise<void>;
+  retryVideo: (videoId: string) => Promise<void>;
   setStartupSSE: (data: StartupSSE) => void;
+  setPlaylistManagerOpen: (open: boolean) => void;
+  setActivePlaylistId: (id: string | null) => void;
+  fetchPlaylists: () => Promise<void>;
+  createPlaylist: (name: string, description?: string) => Promise<PlaylistT | null>;
+  deletePlaylist: (playlistId: string) => Promise<void>;
+  addVideoToPlaylist: (playlistId: string, videoId: string) => Promise<void>;
+  removeVideoFromPlaylist: (playlistId: string, videoId: string) => Promise<void>;
+  toggleWatchLater: (videoId: string) => Promise<boolean>;
 }
 const API_BASE = import.meta.env.VITE_SOCKET_URL || "http://localhost:8000";
 export const useAppStore = create<AppState>()(
@@ -160,13 +179,21 @@ export const useAppStore = create<AppState>()(
         token: getAuthToken(),
         user: null,
         settings: null,
-        isAuthOpen: false,
+        activePage: "downloads",
+        setActivePage: (page) =>
+          set((state) => {
+            state.activePage = page;
+          }),
+        isAuthOpen: !getAuthToken(),
         isAdminOpen: false,
         isSettingsOpen: false,
         isStorageManagerOpen: false,
+        isPlaylistManagerOpen: false,
         storageStats: null,
         videos: {},
         videoProgress: {},
+        playlists: [],
+        activePlaylistId: null,
         globalFilter: "",
         viewMode: "grid",
         startupp: null,
@@ -292,7 +319,17 @@ export const useAppStore = create<AppState>()(
           }),
         upsertVideoProgress: (progress) =>
           set((state) => {
-            state.videoProgress[progress.id] = progress;
+            const current = state.videoProgress[progress.id] || {};
+            state.videoProgress[progress.id] = {
+              ...current,
+              ...progress,
+              percent:
+                typeof progress.percent === "number" && !isNaN(progress.percent)
+                  ? progress.percent
+                  : current.percent ?? 0,
+              downloadedSize: progress.downloadedSize || current.downloadedSize,
+              totalSize: progress.totalSize || current.totalSize,
+            };
           }),
         removeVideoProgress: (id) =>
           set((state) => {
@@ -313,19 +350,116 @@ export const useAppStore = create<AppState>()(
         fetchVideos: async () => {
           try {
             const response = await axios.get(`${API_BASE}/api/videos`);
+            const newVideos = Object.fromEntries(
+              response.data.map((v: VideoT) => [v.id, v]),
+            );
             set((state) => {
-              state.videos = Object.fromEntries(
-                response.data.map((v: VideoT) => [v.id, v]),
-              );
+              if (
+                Object.keys(state.videos).length > 0 ||
+                Object.keys(newVideos).length > 0
+              ) {
+                state.videos = newVideos;
+              }
             });
           } catch (error) {
             console.error("Failed to fetch videos:", error);
+          }
+        },
+        pauseVideo: async (videoId) => {
+          try {
+            const res = await axios.post(`${API_BASE}/api/video/${videoId}/pause`);
+            get().upsertVideo(res.data);
+          } catch (err) {
+            console.error("Failed to pause video:", err);
+          }
+        },
+        resumeVideo: async (videoId) => {
+          try {
+            const res = await axios.post(`${API_BASE}/api/video/${videoId}/resume`);
+            get().upsertVideo(res.data);
+          } catch (err) {
+            console.error("Failed to resume video:", err);
+          }
+        },
+        retryVideo: async (videoId) => {
+          try {
+            const res = await axios.post(`${API_BASE}/api/video/${videoId}/retry`);
+            get().upsertVideo(res.data);
+          } catch (err) {
+            console.error("Failed to retry video:", err);
           }
         },
         setStartupSSE: (data) =>
           set((state) => {
             state.startupp = data;
           }),
+        setPlaylistManagerOpen: (open) =>
+          set((state) => {
+            state.isPlaylistManagerOpen = open;
+          }),
+        setActivePlaylistId: (id) =>
+          set((state) => {
+            state.activePlaylistId = id;
+          }),
+        fetchPlaylists: async () => {
+          try {
+            const res = await axios.get(`${API_BASE}/api/playlists`);
+            set((state) => {
+              state.playlists = res.data;
+            });
+          } catch (err) {
+            console.error("Failed to fetch playlists:", err);
+          }
+        },
+        createPlaylist: async (name, description = "") => {
+          try {
+            const res = await axios.post(`${API_BASE}/api/playlists`, { name, description });
+            get().fetchPlaylists();
+            return res.data;
+          } catch (err) {
+            console.error("Failed to create playlist:", err);
+            return null;
+          }
+        },
+        deletePlaylist: async (playlistId) => {
+          try {
+            await axios.delete(`${API_BASE}/api/playlists/${playlistId}`);
+            if (get().activePlaylistId === playlistId) {
+              set((state) => {
+                state.activePlaylistId = null;
+              });
+            }
+            get().fetchPlaylists();
+          } catch (err) {
+            console.error("Failed to delete playlist:", err);
+          }
+        },
+        addVideoToPlaylist: async (playlistId, videoId) => {
+          try {
+            await axios.post(`${API_BASE}/api/playlists/${playlistId}/videos`, { video_id: videoId });
+            get().fetchPlaylists();
+          } catch (err) {
+            console.error("Failed to add video to playlist:", err);
+          }
+        },
+        removeVideoFromPlaylist: async (playlistId, videoId) => {
+          try {
+            await axios.delete(`${API_BASE}/api/playlists/${playlistId}/videos/${videoId}`);
+            get().fetchPlaylists();
+          } catch (err) {
+            console.error("Failed to remove video from playlist:", err);
+          }
+        },
+        toggleWatchLater: async (videoId) => {
+          try {
+            const res = await axios.post(`${API_BASE}/api/playlists/watch-later/toggle/${videoId}`);
+            get().fetchPlaylists();
+            return !!res.data.in_watch_later;
+          } catch (err) {
+            console.error("Failed to toggle watch later:", err);
+            return false;
+          }
+        },
       })),
       {
         name: "app-store",
