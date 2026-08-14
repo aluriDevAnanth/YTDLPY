@@ -49,3 +49,16 @@ export const NotifyS = z.object({
   extraData: z.object(),
 });
 export type NotifyT = z.infer<typeof NotifyS>;
+
+export const PlaylistS = z.object({
+  id: z.string(),
+  public_id: z.string().optional(),
+  userId: z.string(),
+  name: z.string(),
+  description: z.string().optional(),
+  is_default: z.boolean(),
+  created_at: z.string(),
+  video_count: z.number(),
+  video_ids: z.array(z.string()),
+});
+export type PlaylistT = z.infer<typeof PlaylistS>;

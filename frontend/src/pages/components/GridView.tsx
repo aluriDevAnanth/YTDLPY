@@ -12,7 +12,9 @@ import ReactJson from "react-json-view";
 import useVideoStore from "src/context/videoStore";
 import type { VideoT } from "src/schema";
 import { getAuthToken } from "src/store/useAppStore";
+import AddToPlaylistDialog from "./AddToPlaylistDialog";
 import LogViewerDialog from "./LogViewerDialog";
+import PlaylistBanner from "./PlaylistBanner";
 import VideoDialog from "./VideoDialog";
 
 const API_BASE = import.meta.env.VITE_SOCKET_URL || "http://localhost:8000";
@@ -54,6 +56,20 @@ const VideoCard = memo(
     const [imgError, setImgError] = useState(false);
     const upsertVideo = useVideoStore((state) => state.upsertVideo);
     const videoProgress = useVideoStore((state) => state.videoProgress);
+    const pauseVideo = useVideoStore((state) => state.pauseVideo);
+    const resumeVideo = useVideoStore((state) => state.resumeVideo);
+    const retryVideo = useVideoStore((state) => state.retryVideo);
+    const playlists = useVideoStore((state) => state.playlists);
+    const toggleWatchLater = useVideoStore((state) => state.toggleWatchLater);
+
+    const watchLaterPlaylist = useMemo(
+      () => playlists.find((p) => p.is_default),
+      [playlists],
+    );
+    const inWatchLater = useMemo(
+      () => watchLaterPlaylist?.video_ids.includes(video.id),
+      [watchLaterPlaylist, video.id],
+    );
 
     const rawProgress = useMemo(
       () => videoProgress[video.id],
@@ -61,16 +77,13 @@ const VideoCard = memo(
     );
 
     const displayPercent = useMemo(() => {
-      if (video.downloadStatus === "generating_sprites") {
-        if (rawProgress?.speed === "FFmpeg") {
-          const val = rawProgress?.percent?.toString().replace("%", "");
-          return val ? parseFloat(val) : 0;
-        }
-        return 0;
-      }
       const val = rawProgress?.percent?.toString().replace("%", "");
-      return val ? parseFloat(val) : 0;
-    }, [rawProgress, video.downloadStatus]);
+      if (val !== undefined && val !== null && val !== "") {
+        const parsed = parseFloat(val);
+        if (!isNaN(parsed)) return parsed;
+      }
+      return 0;
+    }, [rawProgress]);
 
     useEffect(() => {
       if (
@@ -130,7 +143,7 @@ const VideoCard = memo(
             </>
           ) : (
             /* Thumbnail Progress Overlay with YTDLnis Card-Wide Fill & Shimmer */
-            <div className="relative w-full h-full p-2 flex flex-col justify-between bg-gradient-to-br from-slate-100 via-slate-200 to-slate-100 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 border-b border-gray-200 dark:border-gray-800/60 overflow-hidden">
+            <div className="relative w-full h-full p-2.5 flex flex-col justify-between bg-gradient-to-br from-slate-100 via-slate-200 to-slate-100 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 border-b border-gray-200 dark:border-gray-800/60 overflow-hidden">
               {/* Pulsing Skeleton Shimmer Layer */}
               <div className="absolute inset-0 bg-gradient-to-r from-cyan-900/30 via-cyan-500/20 to-cyan-900/30 animate-pulse pointer-events-none z-0" />
 
@@ -140,33 +153,79 @@ const VideoCard = memo(
                 style={{ width: `${Math.max(displayPercent, 0)}%` }}
               />
 
+              {/* Top Bar: Status & Percentage */}
               <div className="relative z-10 flex items-center justify-between text-[11px] font-mono text-cyan-600 dark:text-cyan-400">
                 <span className="flex items-center gap-1.5 font-medium">
                   <Icon
                     icon={
-                      video.downloadStatus === "generating_sprites"
-                        ? "tabler:movie"
-                        : "tabler:download"
+                      video.downloadStatus === "failed"
+                        ? "tabler:alert-triangle"
+                        : video.downloadStatus === "paused"
+                          ? "tabler:player-pause"
+                          : video.downloadStatus === "generating_sprites"
+                            ? "tabler:movie"
+                            : "tabler:download"
                     }
-                    className="text-cyan-600 dark:text-cyan-400 animate-pulse text-sm"
+                    className={`text-sm ${video.downloadStatus === "failed"
+                      ? "text-red-500 font-bold"
+                      : video.downloadStatus === "paused"
+                        ? "text-amber-500"
+                        : "text-cyan-600 dark:text-cyan-400 animate-pulse"
+                      }`}
                   />
-                  {video.downloadStatus === "generating_sprites"
-                    ? "Generating Sprites..."
-                    : video.downloadStatus === "queued"
-                      ? "Queued..."
-                      : "Downloading..."}
+                  {video.downloadStatus === "failed"
+                    ? "Failed"
+                    : video.downloadStatus === "paused"
+                      ? "Paused"
+                      : video.downloadStatus === "generating_sprites"
+                        ? "Generating Sprites..."
+                        : video.downloadStatus === "queued"
+                          ? "Queued..."
+                          : "Downloading..."}
                 </span>
-                <span className="font-bold text-xs text-gray-900 dark:text-white">
+                <span className="font-bold text-xs text-gray-900 dark:text-white font-mono">
                   {displayPercent > 0 ? `${displayPercent.toFixed(1)}%` : "0.0%"}
                 </span>
               </div>
 
+              {/* Middle Section: Centered Resume / Pause / Retry Action Button */}
+              <div className="relative z-20 flex items-center justify-center my-auto">
+                {video.downloadStatus === "failed" ? (
+                  <Icon
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      retryVideo(video.id);
+                    }}
+                    icon="tabler:refresh"
+                    className="text-5xl gap-1.5 rounded-full bg-transparent hover:text-cyan-400 text-white font-bold hover:scale-110 transition-all cursor-pointer border-0"
+                  />
+                ) : video.downloadStatus === "paused" ? (
+                  <Icon
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      resumeVideo(video.id);
+                    }}
+                    icon="tabler:player-play"
+                    className="gap-1.5 rounded-full bg-transparent hover:text-emerald-400 text-white font-bold hover:scale-110 transition-all cursor-pointer border-0 text-5xl"
+                  />
+                ) : (
+                  <Icon
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      pauseVideo(video.id);
+                    }}
+                    icon="tabler:player-pause"
+                    className="text-5xl gap-1.5 rounded-full bg-transparent hover:text-amber-400 text-white font-semibold shadow-md hover:scale-105 transition-all cursor-pointer border-0"
+                  />
+                )}
+              </div>
+
               <div>
                 <div className="relative z-10 flex items-center justify-between text-[12px] font-mono">
-                  <span>⚡ {rawProgress?.speed || "0 B/s"}</span>
+                  <span>⚡ {video.downloadStatus === "failed" ? "Failed" : video.downloadStatus === "paused" ? "Paused" : rawProgress?.speed || "0 B/s"}</span>
                 </div>
                 <div className="relative z-10 flex items-center justify-between text-[12px] font-mono">
-                  <span>⏱️ {rawProgress?.eta || "Calculating..."}</span>
+                  <span>⏱️ {video.downloadStatus === "failed" ? "Failed" : video.downloadStatus === "paused" ? "Paused" : rawProgress?.eta || "Calculating..."}</span>
                 </div>
               </div>
             </div>
@@ -179,6 +238,27 @@ const VideoCard = memo(
                 className="text-cyan-400 drop-shadow-md p-1 bg-black/50 rounded-lg"
               />
             )}
+          </div>
+
+          {/* Top Right YouTube-style Hover Watch Later Clock Button */}
+          <div className="absolute top-1.5 right-1.5 z-20">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleWatchLater(video.id);
+              }}
+              className={`p-1.5 rounded-lg backdrop-blur-md transition-all cursor-pointer border-0 flex items-center justify-center ${inWatchLater
+                ? "bg-amber-500 text-black font-bold shadow-md scale-105"
+                : "bg-black/60 text-white/80 hover:text-white hover:bg-black/90 opacity-0 group-hover:opacity-100"
+                }`}
+              title={inWatchLater ? "Remove from Watch Later" : "Save to Watch Later"}
+            >
+              <Icon
+                icon={inWatchLater ? "tabler:clock-check" : "tabler:clock"}
+                className="text-base"
+              />
+            </button>
           </div>
 
           {/* Repositioned Resolution & Duration Badges */}
@@ -240,14 +320,13 @@ const VideoCard = memo(
   },
 );
 
-export default function YoutubeGridView() {
+export default function GridView() {
   const toast = useRef<Toast>(null);
-  const token = useVideoStore((state) => state.token);
   const videos = useVideoStore((state) => state.videos);
   const globalFilter = useVideoStore((state) => state.globalFilter);
-  const fetchVideos = useVideoStore((state) => state.fetchVideos);
   const removeVideo = useVideoStore((state) => state.removeVideo);
   const [loading, setLoading] = useState(() => Object.keys(videos).length === 0);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const [activeVideo, setActiveVideo] = useState<VideoT | null>(null);
   const [playVideo, setPlayVideo] = useState<VideoT | null>(null);
@@ -259,12 +338,8 @@ export default function YoutubeGridView() {
   const contextMenuRef = useRef<ContextMenu>(null);
 
   useEffect(() => {
-    if (token && Object.keys(videos).length === 0) {
-      fetchVideos().finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
-  }, [token, fetchVideos, videos]);
+    setLoading(false);
+  }, []);
 
   const handleDownload = (video: VideoT) => {
     const config: AxiosRequestConfig<object> = {
@@ -301,11 +376,39 @@ export default function YoutubeGridView() {
     }
   };
 
+  const playlists = useVideoStore((state) => state.playlists);
+  const activePlaylistId = useVideoStore((state) => state.activePlaylistId);
+  const toggleWatchLater = useVideoStore((state) => state.toggleWatchLater);
+  const [playlistVideo, setPlaylistVideo] = useState<VideoT | null>(null);
+
+  const activePlaylist = useMemo(
+    () => playlists.find((p) => p.id === activePlaylistId),
+    [playlists, activePlaylistId],
+  );
+
+  const watchLaterPlaylist = useMemo(
+    () => playlists.find((p) => p.is_default),
+    [playlists],
+  );
+
   const menuItems: MenuItem[] = [
     {
       label: "Play Video",
       icon: "pi pi-play",
       command: () => activeVideo && setPlayVideo(activeVideo),
+    },
+    {
+      label: "Save to Playlist",
+      icon: "pi pi-list",
+      command: () => activeVideo && setPlaylistVideo(activeVideo),
+    },
+    {
+      label:
+        activeVideo && watchLaterPlaylist?.video_ids.includes(activeVideo.id)
+          ? "Remove from Watch Later"
+          : "Add to Watch Later",
+      icon: "pi pi-clock",
+      command: () => activeVideo && toggleWatchLater(activeVideo.id),
     },
     {
       label: "Download File",
@@ -360,6 +463,18 @@ export default function YoutubeGridView() {
 
   const videosList = Object.values(videos).filter((v) => {
     if (!v) return false;
+    if (activePlaylist && !activePlaylist.video_ids.includes(v.id)) {
+      return false;
+    }
+    if (statusFilter !== "all") {
+      if (statusFilter === "downloading") {
+        if (!["downloading", "queued", "generating_sprites", "packing_bundle"].includes(v.downloadStatus)) {
+          return false;
+        }
+      } else if (v.downloadStatus !== statusFilter) {
+        return false;
+      }
+    }
     if (!globalFilter) return true;
     const q = globalFilter.toLowerCase();
     return (
@@ -379,20 +494,6 @@ export default function YoutubeGridView() {
             <SkeletonCard key={i} />
           ))}
         </div>
-      </div>
-    );
-  }
-
-  if (videosList.length === 0) {
-    return (
-      <div className="w-full py-12 flex flex-col items-center justify-center text-center text-gray-400 bg-gray-900/30 border border-gray-800 rounded-xl">
-        <Icon icon="tabler:video-off" className="text-4xl text-gray-600 mb-2" />
-        <p className="text-sm font-medium">No videos found</p>
-        <p className="text-xs text-gray-500 mt-1">
-          {globalFilter
-            ? `No matches for "${globalFilter}"`
-            : "Use the top header form to add video downloads"}
-        </p>
       </div>
     );
   }
@@ -440,18 +541,66 @@ export default function YoutubeGridView() {
         />
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 sm:gap-3 w-full">
-        {videosList.map((video) => (
-          <VideoCard
-            key={video.id}
-            video={video}
-            onOpenContextMenu={handleOpenContextMenu}
-            onOpenMenuButton={handleOpenMenuButton}
-            onCopyUrl={handleCopyUrl}
-            copiedVideoId={copiedVideoId}
-          />
-        ))}
+      {playlistVideo && (
+        <AddToPlaylistDialog
+          video={playlistVideo}
+          visible={!!playlistVideo}
+          onHide={() => setPlaylistVideo(null)}
+        />
+      )}
+
+      {/* YouTube-style Playlist Banner Header */}
+      <PlaylistBanner onPlayFirstVideo={(video) => setPlayVideo(video)} />
+
+      {/* YouTube-style Status Filter Bar (Search filter is in top Header) */}
+      <div className="w-full mb-4 flex items-center justify-between gap-2 overflow-x-auto pb-1 sm:pb-0">
+        <div className="flex items-center gap-1.5 overflow-x-auto">
+          {["all", "downloading", "completed", "paused", "failed"].map((st) => {
+            const isSelected = statusFilter === st;
+            return (
+              <button
+                key={st}
+                type="button"
+                onClick={() => setStatusFilter(st)}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold capitalize transition-all cursor-pointer border-0 shrink-0 ${isSelected
+                  ? "bg-cyan-500 text-black font-bold shadow-xs"
+                  : "bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                  }`}
+              >
+                {st}
+              </button>
+            );
+          })}
+        </div>
       </div>
+
+      {/* Video Content Grid or Empty State */}
+      {videosList.length === 0 ? (
+        <div className="w-full py-12 flex flex-col items-center justify-center text-center text-gray-400 bg-gray-50/50 dark:bg-gray-900/30 border border-gray-200 dark:border-gray-800 rounded-xl">
+          <Icon icon="tabler:video-off" className="text-4xl text-gray-400 dark:text-gray-600 mb-2" />
+          <p className="text-gray-700 dark:text-gray-100 text-sm font-medium">No videos found</p>
+          <p className="text-xs text-gray-500 mt-1">
+            {globalFilter
+              ? `No matches for "${globalFilter}"`
+              : statusFilter !== "all"
+                ? `No videos with status "${statusFilter}"`
+                : "Use the top header form to add video downloads"}
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 sm:gap-3 w-full">
+          {videosList.map((video) => (
+            <VideoCard
+              key={video.id}
+              video={video}
+              onOpenContextMenu={handleOpenContextMenu}
+              onOpenMenuButton={handleOpenMenuButton}
+              onCopyUrl={handleCopyUrl}
+              copiedVideoId={copiedVideoId}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

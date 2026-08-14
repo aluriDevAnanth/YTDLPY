@@ -115,7 +115,7 @@ export default function AdminDialog() {
     >
       <Toast ref={toast} />
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-base font-semibold">User Accounts & RBAC Roles</h3>
+        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">User Accounts & RBAC Roles</h3>
         <Button
           label="Add User"
           icon="pi pi-user-plus"
@@ -198,7 +198,7 @@ export default function AdminDialog() {
                 onChange={(e) => setNewRole(e.value)}
               />
             </div>
-            <div className="flex justify-end gap-2 mt-3">
+            <div className="flex justify-end gap-2 mt-3 pt-2 border-t border-gray-200 dark:border-gray-700/50">
               <Button
                 label="Cancel"
                 severity="secondary"

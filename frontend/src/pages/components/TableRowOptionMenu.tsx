@@ -8,15 +8,20 @@ import { type ReactNode, useRef, useState } from "react";
 import ReactJson from "react-json-view";
 import useVideoStore from "src/context/videoStore";
 import { type VideoT } from "src/schema";
-import VideoDialog from "./VideoDialog";
+import AddToPlaylistDialog from "./AddToPlaylistDialog";
 import LogViewerDialog from "./LogViewerDialog";
+import VideoDialog from "./VideoDialog";
 
 export default function TableRowOptionMenu(rowData: VideoT): ReactNode {
   const toast = useRef<Toast>(null);
   const [visible, setVisible] = useState(false);
   const [info, setInfo] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
+  const [showPlaylist, setShowPlaylist] = useState(false);
   const removeVideo = useVideoStore((state) => state.removeVideo);
+  const pauseVideo = useVideoStore((state) => state.pauseVideo);
+  const resumeVideo = useVideoStore((state) => state.resumeVideo);
+  const retryVideo = useVideoStore((state) => state.retryVideo);
 
   function downloadVideo() {
     const config: AxiosRequestConfig<object> = {
@@ -121,6 +126,50 @@ export default function TableRowOptionMenu(rowData: VideoT): ReactNode {
               >
                 <Icon icon="tabler:terminal-2" className="text-lg" />
               </Button>
+              {["downloading", "queued", "generating_sprites", "packing_bundle"].includes(
+                rowData.downloadStatus,
+              ) && (
+                <Button
+                  onClick={() => pauseVideo(rowData.id)}
+                  severity="warning"
+                  className="px-1.5 py-1 p-button-sm"
+                  tooltip="Pause Download/Processing"
+                  tooltipOptions={{ position: "top" }}
+                >
+                  <Icon icon="tabler:player-pause" className="text-lg" />
+                </Button>
+              )}
+              {rowData.downloadStatus === "paused" && (
+                <Button
+                  onClick={() => resumeVideo(rowData.id)}
+                  severity="success"
+                  className="px-1.5 py-1 p-button-sm"
+                  tooltip="Resume Download/Processing"
+                  tooltipOptions={{ position: "top" }}
+                >
+                  <Icon icon="tabler:player-play" className="text-lg" />
+                </Button>
+              )}
+              {rowData.downloadStatus === "failed" && (
+                <Button
+                  onClick={() => retryVideo(rowData.id)}
+                  severity="info"
+                  className="px-1.5 py-1 p-button-sm"
+                  tooltip="Retry Download"
+                  tooltipOptions={{ position: "top" }}
+                >
+                  <Icon icon="tabler:refresh" className="text-lg" />
+                </Button>
+              )}
+              <Button
+                onClick={() => setShowPlaylist(true)}
+                severity="secondary"
+                className="px-1.5 py-1 p-button-sm"
+                tooltip="Save to Playlist"
+                tooltipOptions={{ position: "top" }}
+              >
+                <Icon icon="tabler:playlist" className="text-lg" />
+              </Button>
               <Button
                 onClick={() => setInfo(true)}
                 severity="warning"
@@ -140,6 +189,13 @@ export default function TableRowOptionMenu(rowData: VideoT): ReactNode {
                 <Icon icon="tabler:trash" className="text-lg" />
               </Button>
             </div>
+            {showPlaylist && (
+              <AddToPlaylistDialog
+                video={rowData}
+                visible={showPlaylist}
+                onHide={() => setShowPlaylist(false)}
+              />
+            )}
           </>
         );
       })()}
