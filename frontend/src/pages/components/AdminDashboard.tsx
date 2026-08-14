@@ -135,10 +135,10 @@ export default function AdminDashboard() {
       <Toast ref={toast} />
       {/* Dashboard Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 min-h-10">
-        <span className="text-base sm:text-lg font-bold text-gray-100 flex items-center gap-2">
+        <span className="text-base sm:text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
           <Icon
             icon="tabler:layout-dashboard"
-            className="text-cyan-400 text-xl shrink-0"
+            className="text-cyan-600 dark:text-cyan-400 text-xl shrink-0"
           />
           <span className="truncate">System Analytics & Management</span>
         </span>
@@ -155,66 +155,66 @@ export default function AdminDashboard() {
       {/* Analytics Cards Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         {/* Users Card */}
-        <div className="p-2.5 sm:p-4 rounded-lg sm:rounded-xl bg-gray-800/60 border border-gray-700/60 flex items-center justify-between shadow-sm">
+        <div className="p-2.5 sm:p-4 rounded-lg sm:rounded-xl bg-white dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/60 flex items-center justify-between shadow-sm transition-colors">
           <div className="flex flex-col gap-0.5">
-            <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
               Users
             </span>
-            <span className="text-lg sm:text-2xl font-bold font-mono text-cyan-400">
+            <span className="text-lg sm:text-2xl font-bold font-mono text-cyan-600 dark:text-cyan-400">
               {(stats?.total_users ?? 0) - 1}
             </span>
           </div>
-          <div className="p-1.5 sm:p-2.5 rounded-md sm:rounded-lg bg-cyan-500/10 text-cyan-400">
+          <div className="p-1.5 sm:p-2.5 rounded-md sm:rounded-lg bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
             <Icon icon="tabler:users" className="text-base sm:text-xl" />
           </div>
         </div>
         {/* Videos Card */}
-        <div className="p-2.5 sm:p-4 rounded-lg sm:rounded-xl bg-gray-800/60 border border-gray-700/60 flex items-center justify-between shadow-sm">
+        <div className="p-2.5 sm:p-4 rounded-lg sm:rounded-xl bg-white dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/60 flex items-center justify-between shadow-sm transition-colors">
           <div className="flex flex-col gap-0.5">
-            <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
               Videos
             </span>
-            <span className="text-lg sm:text-2xl font-bold font-mono text-indigo-400">
+            <span className="text-lg sm:text-2xl font-bold font-mono text-indigo-600 dark:text-indigo-400">
               {stats?.total_videos ?? 0}
             </span>
           </div>
-          <div className="p-1.5 sm:p-2.5 rounded-md sm:rounded-lg bg-indigo-500/10 text-indigo-400">
+          <div className="p-1.5 sm:p-2.5 rounded-md sm:rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
             <Icon icon="tabler:video" className="text-base sm:text-xl" />
           </div>
         </div>
         {/* Disk Usage Card */}
-        <div className="p-2.5 sm:p-4 rounded-lg sm:rounded-xl bg-gray-800/60 border border-gray-700/60 flex items-center justify-between shadow-sm">
+        <div className="p-2.5 sm:p-4 rounded-lg sm:rounded-xl bg-white dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/60 flex items-center justify-between shadow-sm transition-colors">
           <div className="flex flex-col gap-0.5">
-            <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
               Disk Usage
             </span>
-            <span className="text-lg sm:text-2xl font-bold font-mono text-amber-400 truncate max-w-[90px] sm:max-w-none">
+            <span className="text-lg sm:text-2xl font-bold font-mono text-amber-600 dark:text-amber-400 truncate max-w-[90px] sm:max-w-none">
               {stats?.formatted_storage ?? "0 MiB"}
             </span>
           </div>
-          <div className="p-1.5 sm:p-2.5 rounded-md sm:rounded-lg bg-amber-500/10 text-amber-400">
+          <div className="p-1.5 sm:p-2.5 rounded-md sm:rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
             <Icon icon="tabler:database" className="text-base sm:text-xl" />
           </div>
         </div>
         {/* Completed Card */}
-        <div className="p-2.5 sm:p-4 rounded-lg sm:rounded-xl bg-gray-800/60 border border-gray-700/60 flex items-center justify-between shadow-sm">
+        <div className="p-2.5 sm:p-4 rounded-lg sm:rounded-xl bg-white dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/60 flex items-center justify-between shadow-sm transition-colors">
           <div className="flex flex-col gap-0.5">
-            <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
               Completed
             </span>
-            <span className="text-lg sm:text-2xl font-bold font-mono text-emerald-400">
+            <span className="text-lg sm:text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
               {stats?.completed_downloads ?? 0}
             </span>
           </div>
-          <div className="p-1.5 sm:p-2.5 rounded-md sm:rounded-lg bg-emerald-500/10 text-emerald-400">
+          <div className="p-1.5 sm:p-2.5 rounded-md sm:rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
             <Icon icon="tabler:circle-check" className="text-base sm:text-xl" />
           </div>
         </div>
       </div>
       {/* Accounts Table Container */}
-      <div className="flex flex-col gap-2 sm:gap-3 bg-gray-800/40 p-2.5 sm:p-4 rounded-xl border border-gray-700/50">
+      <div className="flex flex-col gap-2 sm:gap-3 bg-white dark:bg-gray-800/40 p-2.5 sm:p-4 rounded-xl border border-gray-200 dark:border-gray-700/50 shadow-sm transition-colors">
         <div className="flex justify-between items-center px-1">
-          <span className="text-sm font-bold text-gray-200">User Accounts</span>
+          <span className="text-sm font-bold text-gray-900 dark:text-gray-200">User Accounts</span>
           <Button
             label="Add User"
             icon="pi pi-user-plus"
@@ -228,7 +228,7 @@ export default function AdminDashboard() {
           loading={loading}
           stripedRows
           size="small"
-          className="text-xs rounded-lg overflow-hidden border border-gray-700/40"
+          className="text-xs rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700/40"
         >
           <Column
             field="username"
@@ -272,7 +272,7 @@ export default function AdminDashboard() {
           />
         </DataTable>
       </div>
-      {}
+
       {showAddModal && (
         <Dialog
           header="Create User Account"
@@ -286,7 +286,7 @@ export default function AdminDashboard() {
             className="flex flex-col gap-3 py-1 font-sans"
           >
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-gray-300">
+              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
                 Username
               </label>
               <InputText
@@ -298,7 +298,7 @@ export default function AdminDashboard() {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-gray-300">
+              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
                 Password
               </label>
               <InputText
@@ -311,7 +311,7 @@ export default function AdminDashboard() {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-gray-300">
+              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
                 Role
               </label>
               <Dropdown
@@ -321,7 +321,7 @@ export default function AdminDashboard() {
                 className="w-full p-inputtext-sm"
               />
             </div>
-            <div className="flex justify-end gap-2 mt-3 pt-2 border-t border-gray-700/50">
+            <div className="flex justify-end gap-2 mt-3 pt-2 border-t border-gray-200 dark:border-gray-700/50">
               <Button
                 label="Cancel"
                 severity="secondary"
