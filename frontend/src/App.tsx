@@ -1,11 +1,18 @@
 import { clsx } from "clsx";
 import { Toast } from "primereact/toast";
 import { useEffect, useRef } from "react";
+import { Route, Routes } from "react-router";
 import { useStartupSSEStore } from "./context/SSEStore";
 import { useAuthStore } from "./context/authStore";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
+import PlaylistDetail from "./pages/PlaylistDetail";
+import PlaylistStudio from "./pages/PlaylistStudio";
+import ToastTesting from "./pages/ToastTesting";
+import WatchLater from "./pages/WatchLater";
+import AdminDashboard from "./pages/components/AdminDashboard";
 import Header from "./pages/components/Header";
+import ProtectedAdminRoute from "./pages/components/ProtectedRoute";
 import SocketHandler from "./pages/components/SocketHandler";
 
 function App() {
@@ -203,7 +210,23 @@ function App() {
         <Toast ref={toastMain} />
         <SocketHandler toastRef={toastMain} />
         <Header />
-        <Home />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/playlists" element={<PlaylistStudio />} />
+          <Route path="/watch_later" element={<WatchLater />} />
+          <Route path="/playlist/:public_id" element={<PlaylistDetail />} />
+          <Route path="/:public_id" element={<PlaylistDetail />} />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedAdminRoute>
+                <AdminDashboard />
+              </ProtectedAdminRoute>
+            }
+          />
+          <Route path="/toast-studio" element={<ToastTesting />} />
+          <Route path="*" element={<Home />} />
+        </Routes>
       </div>
     </>
   );
