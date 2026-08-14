@@ -108,3 +108,81 @@ async def test_process_video_cancellation(seed_users):
     async with test_async_session() as session:
         res = await session.exec(select(Video).where(Video.id == video_id))
         assert res.first() is None
+
+
+@pytest.mark.asyncio
+async def test_download_registry_pause_resume():
+    vid_id = "test-pause-resume-001"
+    download_registry.register(vid_id)
+    assert download_registry.is_active(vid_id)
+    assert not download_registry.is_paused(vid_id)
+
+    download_registry.pause(vid_id)
+    assert download_registry.is_paused(vid_id)
+
+    download_registry.resume(vid_id)
+    assert not download_registry.is_paused(vid_id)
+
+    download_registry.unregister(vid_id)
+
+
+@pytest.mark.asyncio
+async def test_resume_uncompleted_downloads_ignores_paused(seed_users):
+    user = seed_users["user1"]
+    paused_vid_id = "test-paused-on-startup"
+    async with test_async_session() as session:
+        vid = Video(
+            id=paused_vid_id,
+            userId=user.id,
+            url="https://youtube.com/watch?v=pausedonstartup",
+            format="BEST",
+            type="download",
+            downloadStatus="paused",
+            downloaded=False,
+        )
+        session.add(vid)
+        await session.commit()
+
+    with patch("src.VideoDownloader.process_video_download") as mock_process:
+        from src.VideoDownloader import resume_uncompleted_downloads
+        await resume_uncompleted_downloads()
+        mock_process.assert_not_called()
+
+    async with test_async_session() as session:
+        res = await session.exec(select(Video).where(Video.id == paused_vid_id))
+        vid_rec = res.first()
+        assert vid_rec is not None
+        assert vid_rec.downloadStatus == "paused"
+
+
+@pytest.mark.asyncio
+async def test_failed_video_preserved_in_db(seed_users):
+    user = seed_users["user1"]
+    failed_video_id = "test-fail-preserve-001"
+    async with test_async_session() as session:
+        vid = Video(
+            id=failed_video_id,
+            userId=user.id,
+            url="https://youtube.com/watch?v=failme",
+            format="BEST",
+            type="download",
+            downloadStatus="queued",
+        )
+        session.add(vid)
+        await session.commit()
+
+    loop = asyncio.get_event_loop()
+
+    def mock_download_error(self, urls):
+        raise Exception("Network connection timeout")
+
+    with patch.object(
+        yt_dlp.YoutubeDL, "download", side_effect=mock_download_error, autospec=True
+    ):
+        await process_video_download(failed_video_id, loop)
+
+    async with test_async_session() as session:
+        res = await session.exec(select(Video).where(Video.id == failed_video_id))
+        vid_rec = res.first()
+        assert vid_rec is not None
+        assert vid_rec.downloadStatus == "failed"
