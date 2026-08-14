@@ -26,22 +26,72 @@ from src.sio import (
 )
 
 
+import threading
+
 class ActiveDownloadRegistry:
     def __init__(self):
         self._active: Dict[str, bool] = {}
+        self._paused: Dict[str, bool] = {}
+        self._unpause_events: Dict[str, threading.Event] = {}
+        self._lock = threading.Lock()
 
     def register(self, video_id: str):
-        self._active[video_id] = True
+        with self._lock:
+            self._active[video_id] = True
+            self._paused[video_id] = False
+            ev = self._unpause_events.get(video_id)
+            if not ev:
+                ev = threading.Event()
+                self._unpause_events[video_id] = ev
+            ev.set()
 
     def cancel(self, video_id: str):
-        self._active[video_id] = False
+        with self._lock:
+            self._active[video_id] = False
+            self._paused[video_id] = False
+            ev = self._unpause_events.get(video_id)
+            if ev:
+                ev.set()
+
+    def pause(self, video_id: str):
+        with self._lock:
+            self._paused[video_id] = True
+            ev = self._unpause_events.get(video_id)
+            if not ev:
+                ev = threading.Event()
+                self._unpause_events[video_id] = ev
+            ev.clear()
+
+    def resume(self, video_id: str):
+        with self._lock:
+            self._paused[video_id] = False
+            ev = self._unpause_events.get(video_id)
+            if ev:
+                ev.set()
 
     def is_active(self, video_id: str) -> bool:
-        return self._active.get(video_id, False)
+        with self._lock:
+            return self._active.get(video_id, False)
+
+    def is_paused(self, video_id: str) -> bool:
+        with self._lock:
+            return self._paused.get(video_id, False)
+
+    def wait_if_paused(self, video_id: str, timeout: float = 1.0) -> bool:
+        """Blocks while paused until resumed or cancelled. Returns False if cancelled/inactive."""
+        while self.is_active(video_id) and self.is_paused(video_id):
+            ev = self._unpause_events.get(video_id)
+            if ev:
+                ev.wait(timeout=timeout)
+        return self.is_active(video_id)
 
     def unregister(self, video_id: str):
-        if video_id in self._active:
-            del self._active[video_id]
+        with self._lock:
+            self._active.pop(video_id, None)
+            self._paused.pop(video_id, None)
+            ev = self._unpause_events.pop(video_id, None)
+            if ev:
+                ev.set()
 
 
 download_registry = ActiveDownloadRegistry()
@@ -136,19 +186,22 @@ def safe_rmtree(path: Path, retries: int = 10, delay: float = 0.2):
         return
     import gc
 
-    def remove_readonly(func, p, exc_info):
+    def remove_readonly(func, p, exc_info=None):
         try:
             os.chmod(p, 0o777)
             func(p)
-        except Exception as ex:
-            print(f"FAILED TO DELETE {p}: {ex}")
+        except Exception:
+            pass
 
     for i in range(retries):
         gc.collect()
         try:
-            shutil.rmtree(path, onerror=remove_readonly)
-        except (PermissionError, OSError):
-            pass
+            shutil.rmtree(path, onexc=lambda func, p, exc: remove_readonly(func, p))
+        except (PermissionError, OSError, TypeError):
+            try:
+                shutil.rmtree(path, onerror=remove_readonly)
+            except Exception:
+                pass
         if not path.exists():
             return
         time.sleep(delay)
@@ -232,6 +285,33 @@ async def process_video_download(video_id: str, loop: asyncio.AbstractEventLoop)
             nonlocal has_sent_initial_metadata, title, duration_sec, filesize, resolution
             if not download_registry.is_active(video_id):
                 raise Exception("Download cancelled by user")
+
+            if d.get("status") == "downloading":
+                total = d.get("total_bytes") or d.get("total_bytes_estimate") or 0
+                downloaded = d.get("downloaded_bytes") or 0
+                percent = (downloaded / total * 100) if total > 0 else 0
+
+                if download_registry.is_paused(video_id):
+                    paused_payload = {
+                        "id": video_id,
+                        "videoId": video_id,
+                        "downloadStatus": "paused",
+                        "eta": "Paused",
+                        "percent": round(percent, 1),
+                        "speed": "Paused",
+                        "downloadedSize": format_size(downloaded),
+                        "totalSize": format_size(total),
+                    }
+                    asyncio.run_coroutine_threadsafe(
+                        send_status_update(paused_payload, user_id), loop
+                    )
+                    was_active = download_registry.wait_if_paused(video_id)
+                    if not was_active:
+                        raise Exception("Download cancelled by user")
+            elif download_registry.is_paused(video_id):
+                was_active = download_registry.wait_if_paused(video_id)
+                if not was_active:
+                    raise Exception("Download cancelled by user")
             info = d.get("info_dict") or {}
             if not has_sent_initial_metadata and info and info.get("title"):
                 has_sent_initial_metadata = True
@@ -425,6 +505,10 @@ async def process_video_download(video_id: str, loop: asyncio.AbstractEventLoop)
                     async with GLOBAL_SPRITE_SEMAPHORE:
                         if not download_registry.is_active(video_id):
                             return
+                        if download_registry.is_paused(video_id):
+                            was_active = await asyncio.to_thread(download_registry.wait_if_paused, video_id)
+                            if not was_active:
+                                return
                         c_start = chunk_idx * chunk_duration
                         c_end = min(dur, (chunk_idx + 1) * chunk_duration)
                         out_pattern = str(video_temp_dir / f"chunk_{chunk_idx}_sprite_%d.jpg")
@@ -674,9 +758,17 @@ async def process_video_download(video_id: str, loop: asyncio.AbstractEventLoop)
             result = await session.exec(select(Video).where(Video.id == video_id))
             vid_record = result.first()
             if vid_record:
-                await session.delete(vid_record)
-                await session.commit()
-        await send_remove_video(video_id, user_id)
+                if "cancelled" in str(e).lower():
+                    await session.delete(vid_record)
+                    await session.commit()
+                    await send_remove_video(video_id, user_id)
+                else:
+                    vid_record.downloadStatus = "failed"
+                    vid_record.downloaded = False
+                    session.add(vid_record)
+                    await session.commit()
+                    await session.refresh(vid_record)
+                    await send_video_message(vid_record.dict(), user_id)
         await send_notify(
             "error", "Download Failed", f"Failed to download video: {str(e)}", user_id
         )
@@ -685,11 +777,14 @@ async def process_video_download(video_id: str, loop: asyncio.AbstractEventLoop)
 
 
 async def resume_uncompleted_downloads():
-    """Scans DB on backend startup for any interrupted downloads and automatically resumes them."""
+    """Scans DB on backend startup for any interrupted downloads and automatically resumes them (excluding paused and failed downloads)."""
     loop = asyncio.get_running_loop()
     async with db.async_session_maker() as session:
         result = await session.exec(
-            select(Video).where(Video.downloaded == False, Video.type == "download")
+            select(Video)
+            .where(Video.downloaded == False, Video.type == "download")
+            .where(Video.downloadStatus != "paused")
+            .where(Video.downloadStatus != "failed")
         )
         uncompleted_videos = result.all()
         if uncompleted_videos:
