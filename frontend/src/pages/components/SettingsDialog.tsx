@@ -9,6 +9,7 @@ import { InputTextarea } from "primereact/inputtextarea";
 import { Toast } from "primereact/toast";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useAuthStore } from "../../context/authStore";
+import { pt } from "../../pt";
 
 const API_BASE = import.meta.env.VITE_SOCKET_URL || "http://localhost:8000";
 
@@ -52,7 +53,7 @@ const viewModeOptions = [
 ];
 
 export default function SettingsDialog() {
-  const { isSettingsOpen, setSettingsOpen, settings, setSettings, user } =
+  const { isSettingsOpen, user, setSettingsOpen, settings, setSettings } =
     useAuthStore();
   const toast = useRef<Toast>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -156,6 +157,7 @@ export default function SettingsDialog() {
       onHide={() => setSettingsOpen(false)}
       dismissableMask
       className="font-sans"
+      pt={pt.dialog}
     >
       <Toast ref={toast} />
 
@@ -219,7 +221,7 @@ export default function SettingsDialog() {
               />
             </div>
 
-            {user?.role !== "admin" ? null : <div className="flex flex-col gap-1.5">
+            {user?.role === "admin" && <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-gray-200">
                 Auth Token Storage Mode
               </label>
@@ -233,7 +235,7 @@ export default function SettingsDialog() {
                 className="w-full text-xs bg-gray-950 border-gray-800 rounded-lg"
               />
               <span className="text-[11px] text-gray-400 leading-snug">
-                Local Storage keeps you logged in across browser sessions.
+                Local Storage keeps you logged in across browser sessions. Session Storage clears login when tab closes.
               </span>
             </div>}
 
