@@ -1,10 +1,45 @@
 import { Icon } from "@iconify/react";
-import { Button } from "primereact/button";
 import { useEffect, useState } from "react";
 
 const primereact = {
   light: "lara-light-blue",
   dark: "lara-dark-blue",
+};
+
+export const applyTheme = (isDark: boolean) => {
+  const themeName = isDark ? "dark" : "light";
+  const primeTheme = isDark ? primereact.dark : primereact.light;
+
+  localStorage.setItem("YTDLP-X-GUI-THEME", themeName);
+  document.documentElement.setAttribute("tw-data-theme", themeName);
+  document.documentElement.setAttribute("data-theme", themeName);
+
+  if (isDark) {
+    document.documentElement.classList.add("dark");
+    document.documentElement.classList.remove("light");
+  } else {
+    document.documentElement.classList.add("light");
+    document.documentElement.classList.remove("dark");
+  }
+
+  let themeLink = document.getElementById("primereact-theme") as HTMLLinkElement;
+  if (!themeLink) {
+    themeLink = document.createElement("link");
+    themeLink.id = "primereact-theme";
+    themeLink.rel = "stylesheet";
+    document.head.appendChild(themeLink);
+  }
+  themeLink.href = `/themes/${primeTheme}/theme.css`;
+};
+
+/** Headless Theme Initializer Component (renders 0 DOM elements) */
+export const ThemeInitializer = () => {
+  useEffect(() => {
+    const saved = localStorage.getItem("YTDLP-X-GUI-THEME");
+    const isDark = saved ? saved === "dark" : true;
+    applyTheme(isDark);
+  }, []);
+  return null;
 };
 
 const ThemeSwitcher = () => {
@@ -14,29 +49,7 @@ const ThemeSwitcher = () => {
   });
 
   useEffect(() => {
-    const themeName = isDark ? "dark" : "light";
-    const primeTheme = isDark ? primereact.dark : primereact.light;
-
-    localStorage.setItem("YTDLP-X-GUI-THEME", themeName);
-    document.documentElement.setAttribute("tw-data-theme", themeName);
-    document.documentElement.setAttribute("data-theme", themeName);
-
-    if (isDark) {
-      document.documentElement.classList.add("dark");
-      document.documentElement.classList.remove("light");
-    } else {
-      document.documentElement.classList.add("light");
-      document.documentElement.classList.remove("dark");
-    }
-
-    let themeLink = document.getElementById("primereact-theme") as HTMLLinkElement;
-    if (!themeLink) {
-      themeLink = document.createElement("link");
-      themeLink.id = "primereact-theme";
-      themeLink.rel = "stylesheet";
-      document.head.appendChild(themeLink);
-    }
-    themeLink.href = `/themes/${primeTheme}/theme.css`;
+    applyTheme(isDark);
   }, [isDark]);
 
   const toggleTheme = () => {
@@ -44,20 +57,15 @@ const ThemeSwitcher = () => {
   };
 
   return (
-    <Button
-      type="button"
+    <div
       onClick={toggleTheme}
-      outlined
-      severity="secondary"
       className="p-1.5 flex items-center justify-center cursor-pointer"
-      tooltip={isDark ? "Switch to Light Theme" : "Switch to Dark Theme"}
-      tooltipOptions={{ position: "bottom" }}
     >
       <Icon
         className="text-lg"
         icon={isDark ? "tabler:sun" : "tabler:moon"}
       />
-    </Button>
+    </div>
   );
 };
 

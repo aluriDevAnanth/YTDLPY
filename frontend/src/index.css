@@ -24,3 +24,79 @@ body,
   --media-thumbnail-width: 240px;
   --media-thumbnail-height: 135px;
 }
+
+/* Compact Tooltip styling & alignment fixes */
+.p-tooltip {
+  pointer-events: none !important;
+  z-index: 99999 !important;
+}
+
+.p-tooltip .p-tooltip-text {
+  font-family: inherit !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  padding: 4px 10px !important;
+  border-radius: 8px !important;
+  line-height: 1.2 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4) !important;
+}
+
+.dark .p-tooltip .p-tooltip-text {
+  background: rgba(24, 24, 27, 0.95) !important;
+  color: #f4f4f5 !important;
+  border: none !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+/* Tooltip arrow colors */
+.dark .p-tooltip-top .p-tooltip-arrow {
+  border-top-color: rgba(24, 24, 27, 0.95) !important;
+}
+.dark .p-tooltip-bottom .p-tooltip-arrow {
+  border-bottom-color: rgba(24, 24, 27, 0.95) !important;
+}
+.dark .p-tooltip-left .p-tooltip-arrow {
+  border-left-color: rgba(24, 24, 27, 0.95) !important;
+}
+.dark .p-tooltip-right .p-tooltip-arrow {
+  border-right-color: rgba(24, 24, 27, 0.95) !important;
+}
+
+/* Notification Toast Enhancements */
+.p-toast {
+  width: 20rem !important;
+  max-width: 85vw !important;
+  z-index: 99999 !important;
+}
+
+.p-toast .p-toast-message {
+  border-radius: 12px !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.25) !important;
+  backdrop-filter: blur(12px) !important;
+  margin-bottom: 0.35rem !important;
+  overflow: hidden !important;
+}
+
+.dark .p-toast .p-toast-message-info {
+  background: rgba(15, 23, 42, 0.94) !important;
+  border: none !important;
+  color: #e0f2fe !important;
+}
+
+.dark .p-toast .p-toast-message-success {
+  background: rgba(6, 78, 59, 0.94) !important;
+  border: none !important;
+  color: #ecfdf5 !important;
+}
+
+.dark .p-toast .p-toast-message-warn {
+  background: rgba(120, 53, 15, 0.94) !important;
+  border: none !important;
+  color: #fffbeb !important;
+}
+
+.dark .p-toast .p-toast-message-error {
+  background: rgba(127, 29, 29, 0.94) !important;
+  border: none !important;
+  color: #fef2f2 !important;
+}

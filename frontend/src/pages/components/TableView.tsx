@@ -13,8 +13,11 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
+import PlaylistBanner from "./PlaylistBanner";
+
 import useVideoStore from "src/context/videoStore";
 import { type VideoT } from "src/schema";
 import { getAuthToken } from "src/store/useAppStore";
@@ -22,6 +25,7 @@ import ProgressBarOrID from "./ProgressBarOrID";
 import TableRowOptionMenu from "./TableRowOptionMenu";
 import VideoDialog from "./VideoDialog";
 import YoutubeGridView from "./GridView";
+
 const HoverContext = createContext<{
   setHoveredThumbnail: (
     state: {
@@ -31,6 +35,7 @@ const HoverContext = createContext<{
     } | null,
   ) => void;
 } | null>(null);
+
 const ThumbnailPreview = memo(
   ({
     hoveredThumbnail,
@@ -67,6 +72,7 @@ const ThumbnailPreview = memo(
     );
   },
 );
+
 const BooleanTemplate = memo(
   ({ rowData, field }: { rowData: VideoT; field: keyof VideoT }) => {
     const value =
@@ -85,6 +91,7 @@ const BooleanTemplate = memo(
     );
   },
 );
+
 const TagsCell = memo(
   ({
     rowData,
@@ -123,6 +130,7 @@ const TagsCell = memo(
     );
   },
 );
+
 const UrlBody = memo(({ rowData }: { rowData: VideoT }) => {
   return (
     <div className="flex items-center gap-1">
@@ -142,6 +150,7 @@ const UrlBody = memo(({ rowData }: { rowData: VideoT }) => {
     </div>
   );
 });
+
 function PreviewPortalContainer() {
   const context = useContext(HoverContext);
   const [previewState, setPreviewState] = useState<{
@@ -157,24 +166,34 @@ function PreviewPortalContainer() {
   if (!previewState) return null;
   return <ThumbnailPreview hoveredThumbnail={previewState} />;
 }
+
 function TableGrid({
   onTagDoubleClick,
 }: {
   onTagDoubleClick: (video: VideoT) => void;
 }) {
   const videos = useVideoStore((state) => state.videos);
+  const playlists = useVideoStore((state) => state.playlists);
+  const activePlaylistId = useVideoStore((state) => state.activePlaylistId);
   const globalFilter = useVideoStore((state) => state.globalFilter);
-  const fetchVideos = useVideoStore((state) => state.fetchVideos);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (Object.keys(videos).length === 0) {
-      fetchVideos().finally(() => setLoading(false));
-    } else {
-      setLoading(false);
+    setLoading(false);
+  }, []);
+
+  const activePlaylist = useMemo(
+    () => playlists.find((p) => p.id === activePlaylistId),
+    [playlists, activePlaylistId],
+  );
+
+  const videosData = useMemo(() => {
+    let list = Object.values(videos).filter(Boolean);
+    if (activePlaylist) {
+      list = list.filter((v) => activePlaylist.video_ids.includes(v.id));
     }
-  }, [fetchVideos, videos]);
-  const videosData = Object.values(videos).filter(Boolean);
+    return list;
+  }, [videos, activePlaylist]);
   const renderTextInputFilter = useCallback((placeholder: string) => {
     return (options: any) => (
       <InputText
@@ -186,9 +205,11 @@ function TableGrid({
     );
   }, []);
   return (
-    <DataTable
-      value={videosData}
-      loading={loading}
+    <div className="w-full">
+      <PlaylistBanner />
+      <DataTable
+        value={videosData}
+        loading={loading}
       size="small"
       showGridlines
       stripedRows
@@ -258,8 +279,10 @@ function TableGrid({
         )}
       />
     </DataTable>
+    </div>
   );
 }
+
 function CopyUrlButton({ rowData }: { rowData: VideoT }): JSX.Element {
   const [copied, setCopied] = useState<boolean>(false);
   const handleCopy = async (
@@ -290,6 +313,7 @@ function CopyUrlButton({ rowData }: { rowData: VideoT }): JSX.Element {
     </Button>
   );
 }
+
 function TableView() {
   const [visible, setVisible] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<VideoT>();
@@ -318,15 +342,9 @@ function TableView() {
     setSelectedVideo(video);
     setVisible(true);
   }, []);
-  const token = useVideoStore((state) => state.token);
   const viewMode = useVideoStore((state) => state.viewMode);
-  const fetchVideos = useVideoStore((state) => state.fetchVideos);
 
-  useEffect(() => {
-    if (token) {
-      fetchVideos();
-    }
-  }, [token, fetchVideos]);
+
 
   return (
     <HoverContext.Provider value={contextValue}>
@@ -349,4 +367,5 @@ function TableView() {
     </HoverContext.Provider>
   );
 }
+
 export default TableView;
