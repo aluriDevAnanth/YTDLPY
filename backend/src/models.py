@@ -20,8 +20,9 @@ class UserSettings(SQLModel, table=True):
     max_concurrent_downloads: int = 3
     auto_generate_vtt: bool = True
     theme: str = "dark"
-    cookies_source: str = "none"
-    cookies_browser: Optional[str] = "chrome"
+    cookies_source: str = "inherit"
+    cookies_browser: Optional[str] = "firefox"
+    cookies_profile: Optional[str] = None
     cookies_txt: Optional[str] = None
     auth_storage_mode: str = "local"
 
@@ -83,6 +84,7 @@ class UserSettingsUpdate(SQLModel):
     theme: Optional[str] = None
     cookies_source: Optional[str] = None
     cookies_browser: Optional[str] = None
+    cookies_profile: Optional[str] = None
     cookies_txt: Optional[str] = None
     auth_storage_mode: Optional[str] = None
 
