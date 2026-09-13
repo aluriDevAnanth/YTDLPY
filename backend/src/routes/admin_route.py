@@ -263,3 +263,44 @@ async def delete_user(
         "status": "success",
         "message": f"User {user.username} and all associated files purged",
     }
+
+
+@router.post("/settings/apply-to-all")
+async def apply_admin_settings_to_all(
+    admin: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    admin_settings_res = await session.exec(
+        select(UserSettings).where(UserSettings.user_id == admin.id)
+    )
+    admin_settings = admin_settings_res.first()
+    if not admin_settings:
+        raise HTTPException(status_code=404, detail="Admin settings not found")
+
+    all_users = (await session.exec(select(User))).all()
+    count = 0
+    for u in all_users:
+        if u.id == admin.id:
+            continue
+        user_settings_res = await session.exec(
+            select(UserSettings).where(UserSettings.user_id == u.id)
+        )
+        us = user_settings_res.first()
+        if not us:
+            us = UserSettings(user_id=u.id)
+        us.cookies_source = admin_settings.cookies_source
+        us.cookies_browser = admin_settings.cookies_browser
+        us.cookies_profile = admin_settings.cookies_profile
+        us.cookies_txt = admin_settings.cookies_txt
+        us.default_format = admin_settings.default_format
+        us.max_concurrent_downloads = admin_settings.max_concurrent_downloads
+        us.auto_generate_vtt = admin_settings.auto_generate_vtt
+        session.add(us)
+        count += 1
+    await session.commit()
+    return {
+        "status": "success",
+        "message": f"Applied Admin settings defaults to {count} users successfully",
+        "applied_count": count,
+    }
+
