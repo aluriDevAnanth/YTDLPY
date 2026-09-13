@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import socketio
 import uvicorn
 from src.db import init_db
+from src.browser_cookie_manager import initialize_browser_detection
 from src.ffmpeg_manager import ensure_ffmpeg_installed
 from src.VideoDownloader import resume_uncompleted_downloads
 from src.cleanup_worker import start_cleanup_worker
@@ -20,6 +21,7 @@ from src.routes.playlist_route import router as playlist_router
 async def lifespan(app: FastAPI):
     log_success("Launching YTDLP-PY-GUI Backend Services...")
     await init_db()
+    initialize_browser_detection()
     asyncio.create_task(ensure_ffmpeg_installed())
     asyncio.create_task(resume_uncompleted_downloads())
     asyncio.create_task(start_cleanup_worker())
