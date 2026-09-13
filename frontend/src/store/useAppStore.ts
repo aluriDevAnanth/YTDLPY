@@ -10,8 +10,9 @@ export interface UserSettings {
   max_concurrent_downloads: number;
   auto_generate_vtt: boolean;
   theme: string;
-  cookies_source?: "none" | "browser" | "custom" | "storage_file";
+  cookies_source?: "inherit" | "none" | "browser" | "custom" | "storage_file";
   cookies_browser?: string;
+  cookies_profile?: string;
   cookies_txt?: string;
   auth_storage_mode?: "session" | "local";
 }
@@ -126,6 +127,8 @@ interface AppState {
   isAdminOpen: boolean;
   isSettingsOpen: boolean;
   isStorageManagerOpen: boolean;
+  isAddDownloadOpen: boolean;
+  isShortcutsHelpOpen: boolean;
   storageStats: UserStorageStats | null;
   videos: Record<string, VideoT>;
   videoProgress: Record<string, VideoProgressT>;
@@ -143,6 +146,8 @@ interface AppState {
   setAdminOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
   setStorageManagerOpen: (open: boolean) => void;
+  setAddDownloadOpen: (open: boolean) => void;
+  setShortcutsHelpOpen: (open: boolean) => void;
   fetchUserStorageStats: () => Promise<void>;
   bulkCleanUserStorage: (options: {
     clean_watched?: boolean;
@@ -189,6 +194,8 @@ export const useAppStore = create<AppState>()(
         isSettingsOpen: false,
         isStorageManagerOpen: false,
         isPlaylistManagerOpen: false,
+        isAddDownloadOpen: false,
+        isShortcutsHelpOpen: false,
         storageStats: null,
         videos: {},
         videoProgress: {},
@@ -261,6 +268,14 @@ export const useAppStore = create<AppState>()(
         setStorageManagerOpen: (open) =>
           set((state) => {
             state.isStorageManagerOpen = open;
+          }),
+        setAddDownloadOpen: (open) =>
+          set((state) => {
+            state.isAddDownloadOpen = open;
+          }),
+        setShortcutsHelpOpen: (open) =>
+          set((state) => {
+            state.isShortcutsHelpOpen = open;
           }),
         fetchUserStorageStats: async () => {
           try {
