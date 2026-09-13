@@ -14,17 +14,25 @@ import AdminDialog from "./AdminDialog";
 import DownloadForm from "./DownloadForm";
 import PlaylistManagerDialog from "./PlaylistManagerDialog";
 import SettingsDialog from "./SettingsDialog";
+import ShortcutsHelpDialog from "./ShortcutsHelpDialog";
 import StorageManagerDialog from "./StorageManagerDialog";
 import ThemeSwitcher, { ThemeInitializer } from "./ThemeSwitcher";
 
 function Header() {
-  const { user, logout, setSettingsOpen, setStorageManagerOpen } =
-    useAuthStore();
+  const {
+    user,
+    logout,
+    setSettingsOpen,
+    setStorageManagerOpen,
+    isAddDownloadOpen,
+    setAddDownloadOpen,
+    setShortcutsHelpOpen,
+  } = useAuthStore();
   const location = useLocation();
   const currentPath = location.pathname;
 
-  const [visible, setVisible] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const isMac = typeof navigator !== "undefined" && navigator.platform?.toUpperCase().indexOf("MAC") >= 0;
   const viewMode = useVideoStore((state) => state.viewMode);
   const setViewMode = useVideoStore((state) => state.setViewMode);
   const globalFilter = useVideoStore((state) => state.globalFilter);
@@ -53,6 +61,7 @@ function Header() {
       <SettingsDialog />
       <PlaylistManagerDialog />
       <StorageManagerDialog />
+      <ShortcutsHelpDialog />
       {user?.role === "admin" && <AdminDialog />}
 
       {/* Mobile-First Navigation Menu Drawer */}
@@ -217,6 +226,21 @@ function Header() {
               type="button"
               onClick={() => {
                 setMobileMenuOpen(false);
+                setShortcutsHelpOpen(true);
+              }}
+              className="flex items-center gap-3 px-3 py-2 text-sm rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left border-0 cursor-pointer"
+            >
+              <Icon
+                icon="tabler:keyboard"
+                className="text-lg text-cyan-400"
+              />
+              <span>Keyboard Shortcuts (?)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
                 logout();
               }}
               className="flex items-center gap-3 px-3 py-2 text-sm font-semibold rounded-xl text-red-500 hover:bg-red-500/10 transition-colors text-left border-0 cursor-pointer mt-2"
@@ -230,9 +254,9 @@ function Header() {
 
       {/* Add Download Modal */}
       <Dialog
-        visible={visible}
+        visible={isAddDownloadOpen}
         style={{ width: "90vw" }}
-        onHide={() => setVisible(false)}
+        onHide={() => setAddDownloadOpen(false)}
         dismissableMask
         showHeader={false}
         pt={{ content: { className: "p-2 sm:pt-3 sm:p-2" } }}
@@ -382,6 +406,23 @@ function Header() {
               <span>Storage Manager</span>
             </div>
 
+            <div
+              onClick={() => {
+                profileMenuRef.current?.hide();
+                setShortcutsHelpOpen(true);
+              }}
+              className="flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors text-gray-700 dark:text-gray-200 w-full text-left font-medium cursor-pointer border-0 hover:font-bold dark:hover:text-gray-400"
+            >
+              <Icon
+                icon="tabler:keyboard"
+                className="text-lg text-cyan-400 shrink-0"
+              />
+              <div className="flex items-center justify-between w-full pr-2">
+                <span>Keyboard Shortcuts</span>
+                <kbd className="px-1.5 py-0.2 text-[10px] font-mono text-gray-400 dark:text-zinc-500 bg-gray-100 dark:bg-zinc-800 rounded border border-gray-300 dark:border-zinc-700">?</kbd>
+              </div>
+            </div>
+
             {user?.role === "admin" && (
               <Link
                 to="/admin"
@@ -503,10 +544,10 @@ function Header() {
             <div className="flex items-center gap-1.5 shrink-0 sm:hidden">
               {user?.role !== "admin" && (
                 <Button
-                  onClick={() => setVisible(true)}
+                  onClick={() => setAddDownloadOpen(true)}
                   severity="success"
                   aria-label="Add Download"
-                  tooltip="Add Video"
+                  tooltip="Add Video (Ctrl+N)"
                   className="p-button-sm !p-1 text-xs"
                 >
                   <Icon icon="tabler:plus" className="text-base" />
@@ -520,6 +561,7 @@ function Header() {
                 severity="info"
                 outlined
                 aria-label="Toggle View Mode"
+                tooltip="Toggle View (V)"
                 className="p-button-sm !p-1"
               >
                 <Icon
@@ -548,32 +590,39 @@ function Header() {
               className="absolute left-3 text-gray-400 dark:text-gray-500 text-base pointer-events-none"
             />
             <InputText
+              id="global-search-input"
               value={globalFilter}
               onChange={(e) => setGlobalFilter(e.target.value)}
               placeholder="Search videos by title, URL, resolution..."
-              className="w-full pl-9 pr-8 py-1.5 text-xs sm:text-sm bg-gray-100 dark:bg-gray-900/80 border border-gray-200 dark:border-gray-800 focus:border-cyan-500 rounded-xl transition-all"
+              className="w-full pl-9 pr-14 py-1.5 text-xs sm:text-sm bg-gray-100 dark:bg-gray-900/80 border border-gray-200 dark:border-gray-800 focus:border-cyan-500 rounded-xl transition-all"
             />
-            {globalFilter && (
+            {globalFilter ? (
               <button
                 type="button"
                 onClick={() => setGlobalFilter("")}
                 className="absolute right-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-white text-xs cursor-pointer border-0 bg-transparent"
-                title="Clear Search"
+                title="Clear Search (Esc)"
               >
                 <Icon icon="tabler:x" className="text-base" />
               </button>
+            ) : (
+              <span className="absolute right-2.5 pointer-events-none hidden sm:inline-flex items-center gap-0.5">
+                <kbd className="px-1.5 py-0.5 text-[10px] font-mono font-bold text-gray-500 dark:text-zinc-400 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded shadow-xs">
+                  {isMac ? "⌘" : "Ctrl"}K
+                </kbd>
+              </span>
             )}
           </div>
 
           {/* Desktop Right Side Controls */}
-          <div className="hidden sm:flex items-center gap-2.5">
+          <div className="hidden sm:flex items-center gap-2">
             {user?.role !== "admin" && (
               <>
                 <Button
-                  onClick={() => setVisible(true)}
+                  onClick={() => setAddDownloadOpen(true)}
                   severity="success"
                   className="p-button-sm p-1.5"
-                  tooltip="Add Download"
+                  tooltip={`Add Download (${isMac ? "⌘N" : "Ctrl+N"})`}
                   tooltipOptions={{ position: "bottom" }}
                 >
                   <Icon icon="tabler:plus" className="text-lg" />
@@ -586,11 +635,7 @@ function Header() {
                   severity="info"
                   outlined
                   className="p-button-sm p-1.5"
-                  tooltip={
-                    viewMode === "table"
-                      ? "Switch to YouTube Grid View"
-                      : "Switch to Table View"
-                  }
+                  tooltip={`Toggle View (${isMac ? "⌥V" : "Alt+V"})`}
                   tooltipOptions={{ position: "bottom" }}
                 >
                   <Icon
@@ -604,6 +649,18 @@ function Header() {
                 </Button>
               </>
             )}
+
+            {/* Keyboard Shortcuts Cheat Sheet Button */}
+            <Button
+              onClick={() => setShortcutsHelpOpen(true)}
+              severity="secondary"
+              outlined
+              className="p-button-sm p-1.5 !border-gray-200 dark:!border-gray-800 !text-gray-600 dark:!text-gray-300 hover:!bg-gray-100 dark:hover:!bg-gray-800"
+              tooltip="Keyboard Shortcuts (?)"
+              tooltipOptions={{ position: "bottom" }}
+            >
+              <Icon icon="tabler:keyboard" className="text-lg text-cyan-500" />
+            </Button>
 
             {/* Profile Avatar Button on Desktop */}
             <button

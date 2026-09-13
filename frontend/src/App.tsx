@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { Route, Routes } from "react-router";
 import { useStartupSSEStore } from "./context/SSEStore";
 import { useAuthStore } from "./context/authStore";
+import { useKeyboardShortcuts } from "./context/useKeyboardShortcuts";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import PlaylistDetail from "./pages/PlaylistDetail";
@@ -16,6 +17,7 @@ import ProtectedAdminRoute from "./pages/components/ProtectedRoute";
 import SocketHandler from "./pages/components/SocketHandler";
 
 function App() {
+  useKeyboardShortcuts();
   const toastMain = useRef<Toast>(null);
   const { token, user, fetchMe } = useAuthStore();
   const startupp = useStartupSSEStore(
