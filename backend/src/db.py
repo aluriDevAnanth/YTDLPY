@@ -20,8 +20,9 @@ async def init_db():
 
         for col_name, col_type in [
             ("default_view_mode", "TEXT DEFAULT 'grid'"),
-            ("cookies_source", "TEXT DEFAULT 'none'"),
-            ("cookies_browser", "TEXT DEFAULT 'chrome'"),
+            ("cookies_source", "TEXT DEFAULT 'inherit'"),
+            ("cookies_browser", "TEXT DEFAULT 'firefox'"),
+            ("cookies_profile", "TEXT DEFAULT NULL"),
             ("cookies_txt", "TEXT DEFAULT NULL"),
             ("auth_storage_mode", "TEXT DEFAULT 'local'"),
         ]:
@@ -31,6 +32,12 @@ async def init_db():
                 )
             except Exception:
                 pass
+        try:
+            await conn.execute(
+                text("UPDATE usersettings SET cookies_source = 'browser', cookies_browser = 'firefox' WHERE cookies_source = 'none' OR cookies_source IS NULL OR cookies_browser = 'chrome' OR cookies_browser = 'edge'")
+            )
+        except Exception:
+            pass
         try:
             await conn.execute(
                 text("ALTER TABLE video ADD COLUMN bundleId TEXT DEFAULT ''")
@@ -70,6 +77,8 @@ async def init_db():
                 max_concurrent_downloads=3,
                 auto_generate_vtt=True,
                 theme="dark",
+                cookies_source="browser",
+                cookies_browser="firefox",
             )
             session.add(admin_settings)
             await session.commit()
