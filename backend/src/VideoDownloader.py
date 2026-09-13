@@ -11,6 +11,7 @@ from typing import Dict, Optional
 import yt_dlp
 from sqlmodel import select
 from src import db
+from src.browser_cookie_manager import resolve_effective_cookies
 from src.bundle_manager import BundleManager
 from src.config import BUNDLES_DIR, STORAGE_DIR, TEMP_DIR
 from src.download_logger import DownloadLogger
@@ -101,11 +102,14 @@ GLOBAL_SPRITE_SEMAPHORE = asyncio.Semaphore(GLOBAL_SEMAPHORE_LIMIT)
 
 
 def get_optimal_thread_count(duration_mins: float) -> int:
-    if duration_mins < 30:
+    if duration_mins < 5:
         return 1
-    needed = max(2, int(math.floor(duration_mins / 30)))
+    if duration_mins < 15:
+        return 2
+    if duration_mins < 30:
+        return 4
     max_cap = min(8, CPU_COUNT)
-    return min(max_cap, needed)
+    return max(4, max_cap)
 
 
 import time
@@ -186,25 +190,19 @@ def safe_rmtree(path: Path, retries: int = 10, delay: float = 0.2):
         return
     import gc
 
-    def remove_readonly(func, p, exc_info=None):
-        try:
-            os.chmod(p, 0o777)
-            func(p)
-        except Exception:
-            pass
-
     for i in range(retries):
         gc.collect()
         try:
-            shutil.rmtree(path, onexc=lambda func, p, exc: remove_readonly(func, p))
-        except (PermissionError, OSError, TypeError):
+            shutil.rmtree(path, ignore_errors=False)
+        except Exception:
             try:
-                shutil.rmtree(path, onerror=remove_readonly)
+                shutil.rmtree(path, ignore_errors=True)
             except Exception:
                 pass
         if not path.exists():
             return
         time.sleep(delay)
+
 
 
 def format_size(bytes_val: float) -> str:
@@ -264,6 +262,7 @@ async def process_video_download(video_id: str, loop: asyncio.AbstractEventLoop)
             select(UserSettings).where(UserSettings.user_id == user_id)
         )
         user_settings = settings_result.first()
+        effective_cookies = await resolve_effective_cookies(user_settings, session)
     d_logger = DownloadLogger(video_temp_dir, filename="download.ndjson")
     start_time_ts = time.time()
     d_logger.log_initialization_start(
@@ -272,7 +271,7 @@ async def process_video_download(video_id: str, loop: asyncio.AbstractEventLoop)
         url=url,
         format_setting=req_format,
         auth_storage_mode=getattr(user_settings, "auth_storage_mode", "local") if user_settings else "local",
-        cookies_source=getattr(user_settings, "cookies_source", "none") if user_settings else "none",
+        cookies_source=effective_cookies.get("source", "none"),
     )
     has_sent_initial_metadata = False
     title = ""
@@ -365,7 +364,7 @@ async def process_video_download(video_id: str, loop: asyncio.AbstractEventLoop)
                     send_status_update(progress_payload, user_id), loop
                 )
 
-        format_spec = "bestvideo+bestaudio/best"
+        format_spec = "bestvideo*+bestaudio/best"
         if req_format == "BESTAUDIO":
             format_spec = "bestaudio/best"
         elif req_format == "WORST":
@@ -383,31 +382,71 @@ async def process_video_download(video_id: str, loop: asyncio.AbstractEventLoop)
             "updatetime": False,
             "quiet": True,
             "no_warnings": True,
+            "retries": 10,
+            "fragment_retries": 10,
+            "http_chunk_size": 10485760,
+            "remote_components": ["ejs:github"],
+            "js_runtimes": {"node": {}} if shutil.which("node") else {},
+            "extractor_args": {
+                "youtube": {
+                    "player_client": ["web_embedded", "web"],
+                }
+            },
         }
-        if user_settings:
-            if (
-                user_settings.cookies_source == "browser"
-                and user_settings.cookies_browser
-            ):
-                ydl_opts["cookiesfrombrowser"] = (user_settings.cookies_browser,)
-            elif user_settings.cookies_source == "custom" and user_settings.cookies_txt:
-                cookies_file = video_temp_dir / "cookies.txt"
-                cookies_file.write_text(user_settings.cookies_txt, encoding="utf-8")
-                ydl_opts["cookiefile"] = str(cookies_file)
-            elif (
-                user_settings.cookies_source == "storage_file"
-                or (STORAGE_DIR / "cookies.txt").exists()
-            ):
-                storage_cookies = STORAGE_DIR / "cookies.txt"
-                if storage_cookies.exists():
-                    ydl_opts["cookiefile"] = str(storage_cookies)
+
+        cookie_source = effective_cookies.get("source", "none")
+        profile = effective_cookies.get("profile")
+        candidates = effective_cookies.get("candidate_browsers", [])
+
+        if cookie_source == "custom" and effective_cookies.get("cookies_txt"):
+            cookies_file = video_temp_dir / "cookies.txt"
+            cookies_file.write_text(effective_cookies["cookies_txt"], encoding="utf-8")
+            ydl_opts["cookiefile"] = str(cookies_file)
+        elif cookie_source == "storage_file" or (STORAGE_DIR / "cookies.txt").exists():
+            storage_cookies = STORAGE_DIR / "cookies.txt"
+            if storage_cookies.exists():
+                ydl_opts["cookiefile"] = str(storage_cookies)
+        elif cookie_source == "browser" and candidates:
+            primary_b = candidates[0]
+            if profile:
+                ydl_opts["cookiesfrombrowser"] = (primary_b, profile)
+            else:
+                ydl_opts["cookiesfrombrowser"] = (primary_b,)
 
         d_logger.log_metadata_start(url=url)
         d_logger.log_download_start(format_spec=format_spec, out_template=out_template)
 
         def run_ytdlp():
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([url])
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    ydl.download([url])
+            except Exception as e:
+                err_str = str(e).lower()
+                is_retryable = any(k in err_str for k in ["cookie", "lock", "sqlite", "403", "forbidden", "dpapi", "decrypt"])
+                if is_retryable:
+                    if candidates:
+                        for b in candidates:
+                            if b == candidates[0] and "cookiesfrombrowser" in ydl_opts:
+                                continue
+                            try:
+                                log_info(f"Retrying download with candidate browser '{b}'...")
+                                opts = dict(ydl_opts)
+                                opts["cookiesfrombrowser"] = (b, profile) if profile else (b,)
+                                with yt_dlp.YoutubeDL(opts) as ydl:
+                                    ydl.download([url])
+                                return
+                            except Exception:
+                                continue
+                    if "cookiesfrombrowser" in ydl_opts:
+                        try:
+                            log_info("Browser DPAPI decryption failed. Retrying download without browser cookies...")
+                            opts_nocookie = {k: v for k, v in ydl_opts.items() if k != "cookiesfrombrowser"}
+                            with yt_dlp.YoutubeDL(opts_nocookie) as ydl:
+                                ydl.download([url])
+                            return
+                        except Exception:
+                            pass
+                raise e
 
         await asyncio.to_thread(run_ytdlp)
         if not download_registry.is_active(video_id):
@@ -469,20 +508,22 @@ async def process_video_download(video_id: str, loop: asyncio.AbstractEventLoop)
                 duration_mins = dur / 60.0
                 num_threads = get_optimal_thread_count(duration_mins)
 
-                if dur <= 600:
-                    interval = 1.0
-                elif dur <= 1800:
+                if dur <= 300:
                     interval = 2.0
-                elif dur <= 3600:
+                elif dur <= 900:
                     interval = 3.0
-                elif dur <= 7200:
-                    interval = 4.0
-                else:
+                elif dur <= 1800:
                     interval = 5.0
+                elif dur <= 3600:
+                    interval = 10.0
+                elif dur <= 7200:
+                    interval = 15.0
+                else:
+                    interval = 20.0
 
-                needed_tiles = max(12, int(math.ceil(dur / interval)))
-                grid_dim = 19
+                grid_dim = 10
                 capacity_per_sheet = grid_dim * grid_dim
+                tile_w, tile_h = 160, 90
 
                 await send_status_update(
                     {
@@ -510,25 +551,46 @@ async def process_video_download(video_id: str, loop: asyncio.AbstractEventLoop)
                             if not was_active:
                                 return
                         c_start = chunk_idx * chunk_duration
-                        c_end = min(dur, (chunk_idx + 1) * chunk_duration)
+                        c_duration = min(dur - c_start, chunk_duration)
                         out_pattern = str(video_temp_dir / f"chunk_{chunk_idx}_sprite_%d.jpg")
                         cmd = [
                             ffmpeg_bin,
                             "-y",
                             "-ss", f"{c_start:.2f}",
-                            "-to", f"{c_end:.2f}",
+                            "-t", f"{c_duration:.2f}",
+                            "-skip_frame", "nokey",
                             "-i", str(final_media_path),
-                            "-vf", f"fps=1/{interval:.4f},scale=240:135,tile={grid_dim}x{grid_dim}",
+                            "-vf", f"fps=1/{interval:.4f},scale={tile_w}:{tile_h}:flags=fast_bilinear,tile={grid_dim}x{grid_dim}",
                             "-q:v", "3",
                             out_pattern,
                         ]
                         def _exec():
-                            subprocess.run(
-                                cmd,
-                                stdout=subprocess.DEVNULL,
-                                stderr=subprocess.DEVNULL,
-                                check=True,
-                            )
+                            try:
+                                res = subprocess.run(
+                                    cmd,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE,
+                                    timeout=60,
+                                )
+                                if res.returncode != 0:
+                                    cmd_fallback = [
+                                        ffmpeg_bin,
+                                        "-y",
+                                        "-ss", f"{c_start:.2f}",
+                                        "-t", f"{c_duration:.2f}",
+                                        "-i", str(final_media_path),
+                                        "-vf", f"fps=1/{interval:.4f},scale={tile_w}:{tile_h}:flags=fast_bilinear,tile={grid_dim}x{grid_dim}",
+                                        "-q:v", "3",
+                                        out_pattern,
+                                    ]
+                                    subprocess.run(
+                                        cmd_fallback,
+                                        stdout=subprocess.DEVNULL,
+                                        stderr=subprocess.DEVNULL,
+                                        timeout=45,
+                                    )
+                            except Exception as exc:
+                                log_warning(f"FFmpeg chunk {chunk_idx} sprite extraction failed: {exc}")
                         await asyncio.to_thread(_exec)
                         completed_chunks += 1
                         pct = min(99.0, round((completed_chunks / num_threads) * 100.0, 1))
@@ -561,7 +623,6 @@ async def process_video_download(video_id: str, loop: asyncio.AbstractEventLoop)
                 await asyncio.gather(*tasks)
 
                 vtt_lines = ["WEBVTT\n\n"]
-                tile_w, tile_h = 240, 135
                 global_sheet_counter = 0
                 cue_counter = 0
 
@@ -612,10 +673,17 @@ async def process_video_download(video_id: str, loop: asyncio.AbstractEventLoop)
 
                 if global_sheet_counter == 0:
                     dummy_sprite = video_temp_dir / "sprite_1.jpg"
-                    if not dummy_sprite.exists():
+                    thumb_source = video_temp_dir / final_thumb_name
+                    if thumb_source.exists() and thumb_source.stat().st_size > 0:
+                        safe_copy_file(thumb_source, dummy_sprite)
+                    elif not dummy_sprite.exists():
                         dummy_sprite.write_bytes(b"")
                     asset_files["vtt_sprite_1"] = dummy_sprite.name
                     asset_files["vtt_sprite"] = dummy_sprite.name
+                    dur_val = duration_sec if duration_sec and duration_sec > 0 else 300
+                    vtt_lines.append(
+                        f"1\n00:00:00.000 --> {format_vtt_timestamp(dur_val)}\n{video_id}_vtt_sprite_1.jpg#xywh=0,0,{tile_w},{tile_h}\n\n"
+                    )
 
                 with open(vtt_path, "w", encoding="utf-8") as f_vtt:
                     f_vtt.writelines(vtt_lines)
@@ -638,7 +706,25 @@ async def process_video_download(video_id: str, loop: asyncio.AbstractEventLoop)
                     user_id,
                 )
 
-            await generate_vtt_sprites_parallel()
+            try:
+                await generate_vtt_sprites_parallel()
+            except Exception as sprite_err:
+                log_warning(f"Error during parallel sprite generation for {video_id}: {sprite_err}. Using thumbnail fallback.")
+                dummy_sprite = video_temp_dir / "sprite_1.jpg"
+                thumb_source = video_temp_dir / final_thumb_name
+                if thumb_source.exists() and thumb_source.stat().st_size > 0:
+                    safe_copy_file(thumb_source, dummy_sprite)
+                elif not dummy_sprite.exists():
+                    dummy_sprite.write_bytes(b"")
+                asset_files["vtt_sprite_1"] = dummy_sprite.name
+                asset_files["vtt_sprite"] = dummy_sprite.name
+                dur_val = duration_sec if duration_sec and duration_sec > 0 else 300
+                vtt_path = video_temp_dir / vtt_filename
+                vtt_path.write_text(
+                    f"WEBVTT\n\n1\n00:00:00.000 --> {format_vtt_timestamp(dur_val)}\n{video_id}_vtt_sprite_1.jpg#xywh=0,0,160,90\n",
+                    encoding="utf-8",
+                )
+
             if not download_registry.is_active(video_id):
                 raise Exception("Download cancelled by user")
             asset_files["vtt"] = vtt_filename
