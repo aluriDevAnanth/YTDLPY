@@ -37,6 +37,8 @@ src.config.BUNDLES_DIR = Path(_test_temp_bundles.name)
 src.config.TEMP_DIR = Path(_test_temp_dir.name)
 src.cleanup_worker.BUNDLES_DIR = Path(_test_temp_bundles.name)
 src.cleanup_worker.TEMP_DIR = Path(_test_temp_dir.name)
+src.VideoDownloader.BUNDLES_DIR = Path(_test_temp_bundles.name)
+src.VideoDownloader.TEMP_DIR = Path(_test_temp_dir.name)
 
 src.db.engine = test_engine
 src.db.async_session_maker = test_async_session

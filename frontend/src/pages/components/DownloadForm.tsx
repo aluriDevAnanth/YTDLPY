@@ -54,6 +54,7 @@ export default function DownloadForm() {
     }
   }, [userSettings, setValue]);
   const upsertVideo = useVideoStore((state) => state.upsertVideo);
+  const setAddDownloadOpen = useAuthStore((s) => s.setAddDownloadOpen);
   const toastMain = useRef<Toast>(null);
   const onSubmit = async (data: DownloadFormT) => {
     const dataa: VideoT = {
@@ -87,6 +88,7 @@ export default function DownloadForm() {
         const newVideo = VideoS.parse(response.data);
         upsertVideo(newVideo);
         reset();
+        setAddDownloadOpen(false);
       })
       .catch((error) => {
         console.error(error);
