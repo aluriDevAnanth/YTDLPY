@@ -50,7 +50,7 @@ async def test_bundle_creation_and_decryption_stream(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_files_route_vtt_sprite_streaming(tmp_path, async_client, seed_users):
+async def test_files_route_vtt_sprite_streaming(tmp_path, async_client, seed_users, user1_token):
     from src.db import async_session_maker
     from src.models import Video
 
@@ -77,21 +77,22 @@ async def test_files_route_vtt_sprite_streaming(tmp_path, async_client, seed_use
         "vtt_sprite_1": "sprite_1.jpg",
     }
     bundle_path = BundleManager.create_bundle(video_id, temp_dir, asset_files)
+    auth_headers = {"Authorization": f"Bearer {user1_token}"}
     try:
-        res_sprite1 = await async_client.get(f"/api/files/{video_id}_vtt_sprite_1.jpg")
+        res_sprite1 = await async_client.get(f"/api/files/{video_id}_vtt_sprite_1.jpg", headers=auth_headers)
         assert res_sprite1.status_code == 200
         assert res_sprite1.headers["content-type"] == "image/jpeg"
         assert res_sprite1.content == sprite_data
-        res_sprite = await async_client.get(f"/api/files/{video_id}_vtt_sprite.jpg")
+        res_sprite = await async_client.get(f"/api/files/{video_id}_vtt_sprite.jpg", headers=auth_headers)
         assert res_sprite.status_code == 200
         assert res_sprite.headers["content-type"] == "image/jpeg"
         assert res_sprite.content == sprite_data
-        res_vtt = await async_client.get(f"/api/files/{video_id}_vtt.vtt")
+        res_vtt = await async_client.get(f"/api/files/{video_id}_vtt.vtt", headers=auth_headers)
         assert res_vtt.status_code == 200
         assert res_vtt.headers["content-type"] == "text/vtt"
         assert res_vtt.content == vtt_data
         res_range = await async_client.get(
-            f"/api/files/{video_id}_vtt.vtt", headers={"Range": "bytes=0-99999"}
+            f"/api/files/{video_id}_vtt.vtt", headers={**auth_headers, "Range": "bytes=0-99999"}
         )
         assert res_range.status_code == 206
         assert len(res_range.content) == len(vtt_data)
@@ -101,7 +102,7 @@ async def test_files_route_vtt_sprite_streaming(tmp_path, async_client, seed_use
 
 
 @pytest.mark.asyncio
-async def test_files_route_custom_bundle_id_streaming(tmp_path, async_client, seed_users):
+async def test_files_route_custom_bundle_id_streaming(tmp_path, async_client, seed_users, user1_token):
     from src.db import async_session_maker
     from src.models import Video
 
@@ -124,13 +125,14 @@ async def test_files_route_custom_bundle_id_streaming(tmp_path, async_client, se
     (temp_dir / "preview.vtt").write_bytes(vtt_data)
     asset_files = {"vtt": "preview.vtt"}
     bundle_path = BundleManager.create_bundle(custom_bundle_id, temp_dir, asset_files)
+    auth_headers = {"Authorization": f"Bearer {user1_token}"}
     try:
-        res_vtt = await async_client.get(f"/api/files/{video_id}_vtt.vtt")
+        res_vtt = await async_client.get(f"/api/files/{video_id}_vtt.vtt", headers=auth_headers)
         assert res_vtt.status_code == 200
         assert res_vtt.content == vtt_data
 
         res_range = await async_client.get(
-            f"/api/files/{video_id}_vtt.vtt", headers={"Range": "bytes=0-5"}
+            f"/api/files/{video_id}_vtt.vtt", headers={**auth_headers, "Range": "bytes=0-5"}
         )
         assert res_range.status_code == 206
         assert res_range.content == b"WEBVTT"
