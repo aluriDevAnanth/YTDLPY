@@ -1,0 +1,1 @@
+MAGIC_HEADER = b"YTPY"
