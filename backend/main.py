@@ -14,6 +14,7 @@ from src.logger import log_info, log_success
 from src.routes.auth_route import router as auth_router
 from src.routes.admin_route import router as admin_router
 from src.routes.video_route import router as video_router
+from src.routes.system_route import router as system_router
 from src.routes.files_route import router as files_router
 from src.routes.playlist_route import router as playlist_router
 
@@ -42,6 +43,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(video_router)
+app.include_router(system_router)
 app.include_router(files_router)
 app.include_router(playlist_router)
 app_asgi = socketio.ASGIApp(sio, app)
