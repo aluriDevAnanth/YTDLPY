@@ -23,12 +23,12 @@ async def get_asset_stream(
     asset_offset = asset_info["offset"]
     asset_length = asset_info["length"]
     abs_start = payload_start + asset_offset + start_byte
-    max_end = asset_offset + asset_length - 1
+    max_end = asset_length - 1
     if end_byte is None or end_byte > max_end:
         actual_end = max_end
     else:
         actual_end = end_byte
-    bytes_to_read = actual_end - (asset_offset + start_byte) + 1
+    bytes_to_read = max(0, actual_end - start_byte + 1)
     async with aiofiles.open(bundle_path, "rb") as f:
         await f.seek(abs_start)
         read_so_far = 0
