@@ -8,14 +8,14 @@ from sqlmodel import select
 from src.bundle_manager import BundleManager
 from src.models import User, Video
 from src.VideoDownloader import download_registry, process_video_download
-from tests.conftest import test_async_session
+from tests.conftest import _test_async_session as db_session_factory
 
 
 @pytest.mark.asyncio
 async def test_process_video_download_mocked(seed_users):
     user = seed_users["user1"]
     video_id = "mock-dl-video-001"
-    async with test_async_session() as session:
+    async with db_session_factory() as session:
         vid = Video(
             id=video_id,
             userId=user.id,
@@ -61,7 +61,7 @@ async def test_process_video_download_mocked(seed_users):
         await process_video_download(video_id, loop)
     temp_folder = config.TEMP_DIR / video_id
     assert not temp_folder.exists()
-    async with test_async_session() as session:
+    async with db_session_factory() as session:
         res = await session.exec(select(Video).where(Video.id == video_id))
         updated_vid = res.first()
         assert updated_vid is not None
@@ -78,7 +78,7 @@ async def test_process_video_download_mocked(seed_users):
 async def test_process_video_cancellation(seed_users):
     user = seed_users["user1"]
     video_id = "mock-cancel-video-002"
-    async with test_async_session() as session:
+    async with db_session_factory() as session:
         vid = Video(
             id=video_id,
             userId=user.id,
@@ -105,7 +105,7 @@ async def test_process_video_cancellation(seed_users):
         await process_video_download(video_id, loop)
     assert not (config.TEMP_DIR / video_id).exists()
     assert not BundleManager.get_bundle_path(video_id).exists()
-    async with test_async_session() as session:
+    async with db_session_factory() as session:
         res = await session.exec(select(Video).where(Video.id == video_id))
         assert res.first() is None
 
@@ -130,7 +130,7 @@ async def test_download_registry_pause_resume():
 async def test_resume_uncompleted_downloads_ignores_paused(seed_users):
     user = seed_users["user1"]
     paused_vid_id = "test-paused-on-startup"
-    async with test_async_session() as session:
+    async with db_session_factory() as session:
         vid = Video(
             id=paused_vid_id,
             userId=user.id,
@@ -148,7 +148,7 @@ async def test_resume_uncompleted_downloads_ignores_paused(seed_users):
         await resume_uncompleted_downloads()
         mock_process.assert_not_called()
 
-    async with test_async_session() as session:
+    async with db_session_factory() as session:
         res = await session.exec(select(Video).where(Video.id == paused_vid_id))
         vid_rec = res.first()
         assert vid_rec is not None
@@ -159,7 +159,7 @@ async def test_resume_uncompleted_downloads_ignores_paused(seed_users):
 async def test_failed_video_preserved_in_db(seed_users):
     user = seed_users["user1"]
     failed_video_id = "test-fail-preserve-001"
-    async with test_async_session() as session:
+    async with db_session_factory() as session:
         vid = Video(
             id=failed_video_id,
             userId=user.id,
@@ -181,7 +181,7 @@ async def test_failed_video_preserved_in_db(seed_users):
     ):
         await process_video_download(failed_video_id, loop)
 
-    async with test_async_session() as session:
+    async with db_session_factory() as session:
         res = await session.exec(select(Video).where(Video.id == failed_video_id))
         vid_rec = res.first()
         assert vid_rec is not None
