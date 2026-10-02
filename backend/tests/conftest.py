@@ -1,3 +1,12 @@
+import sys
+from pathlib import Path
+
+_backend_root = Path(__file__).resolve().parent.parent
+if str(_backend_root) not in sys.path:
+    sys.path.insert(0, str(_backend_root))
+if str(_backend_root / "src") not in sys.path:
+    sys.path.insert(0, str(_backend_root / "src"))
+
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
@@ -12,15 +21,15 @@ from src.db import get_session
 from src.models import User, UserSettings
 
 TEST_DB_URL = "sqlite+aiosqlite:///file:testmemdb?mode=memory&cache=shared"
-test_engine = create_async_engine(
+_test_engine = create_async_engine(
     TEST_DB_URL,
     connect_args={"check_same_thread": False, "uri": True},
     poolclass=StaticPool,
     echo=False,
     future=True,
 )
-test_async_session = sessionmaker(
-    test_engine, class_=AsyncSession, expire_on_commit=False
+_test_async_session = sessionmaker(
+    _test_engine, class_=AsyncSession, expire_on_commit=False
 )
 import tempfile
 from pathlib import Path
@@ -40,24 +49,38 @@ src.cleanup_worker.TEMP_DIR = Path(_test_temp_dir.name)
 src.VideoDownloader.BUNDLES_DIR = Path(_test_temp_bundles.name)
 src.VideoDownloader.TEMP_DIR = Path(_test_temp_dir.name)
 
-src.db.engine = test_engine
-src.db.async_session_maker = test_async_session
+src.db.engine = _test_engine
+src.db.async_session_maker = _test_async_session
 
 
 @pytest_asyncio.fixture(autouse=True)
 async def init_test_db():
-    async with test_engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.drop_all)
+    async with _test_engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
     yield
+    async with _test_engine.begin() as conn:
+        for table in reversed(SQLModel.metadata.sorted_tables):
+            await conn.execute(table.delete())
 
 
 async def override_get_session():
-    async with test_async_session() as session:
+    async with _test_async_session() as session:
         yield session
 
 
 app.dependency_overrides[get_session] = override_get_session
+
+
+@pytest_asyncio.fixture
+async def session():
+    async with _test_async_session() as sess:
+        yield sess
+
+
+@pytest_asyncio.fixture
+async def db_session():
+    async with _test_async_session() as sess:
+        yield sess
 
 
 @pytest_asyncio.fixture
@@ -69,7 +92,7 @@ async def async_client():
 
 @pytest_asyncio.fixture
 async def seed_users():
-    async with test_async_session() as session:
+    async with _test_async_session() as session:
         admin_user = User(
             id="admin-uuid-1",
             username="admin",

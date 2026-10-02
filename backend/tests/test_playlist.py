@@ -1,7 +1,7 @@
 import pytest
 from sqlmodel import select
 from src.models import Playlist, PlaylistVideoLink, Video
-from tests.conftest import test_async_session
+from tests.conftest import _test_async_session as db_session_factory
 
 
 @pytest.mark.asyncio
@@ -51,7 +51,7 @@ async def test_add_and_remove_video_from_playlist(seed_users, async_client, user
     headers = {"Authorization": f"Bearer {user1_token}"}
     vid_id = "test-playlist-video-001"
 
-    async with test_async_session() as session:
+    async with db_session_factory() as session:
         vid = Video(
             id=vid_id,
             userId=user.id,
