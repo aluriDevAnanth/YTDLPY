@@ -23,6 +23,8 @@ export function useKeyboardShortcuts() {
     token,
     viewMode,
     setViewMode,
+    globalFilter,
+    setGlobalFilter,
     fetchVideos,
     fetchPlaylists,
     isSettingsOpen,
@@ -42,13 +44,24 @@ export function useKeyboardShortcuts() {
   useEffect(() => {
     if (!token || !user) return;
 
+    const toggleTheme = () => {
+      const isDark = document.documentElement.classList.contains("dark");
+      if (isDark) {
+        document.documentElement.classList.remove("dark");
+        localStorage.setItem("theme", "light");
+      } else {
+        document.documentElement.classList.add("dark");
+        localStorage.setItem("theme", "dark");
+      }
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
       const isInput = isInputElement(e.target);
       const isMac = typeof navigator !== "undefined" && navigator.platform?.toUpperCase().indexOf("MAC") >= 0;
       const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
       const key = e.key;
 
-      // 1. Escape: Close open modals or blur active input
+      // 1. Escape: Close open modals or clear search and blur active input
       if (key === "Escape") {
         if (
           isShortcutsHelpOpen ||
@@ -67,14 +80,23 @@ export function useKeyboardShortcuts() {
           setAdminOpen(false);
           return;
         }
+        if (globalFilter && document.activeElement?.id === "global-search-input") {
+          e.preventDefault();
+          setGlobalFilter("");
+          (document.activeElement as HTMLElement)?.blur();
+          return;
+        }
         if (isInput && e.target instanceof HTMLElement) {
           e.target.blur();
           return;
         }
       }
 
-      // 2. Search Shortcut: Ctrl+K or / (when not typing)
-      if ((cmdOrCtrl && key.toLowerCase() === "k") || (!isInput && key === "/")) {
+      // 2. Search Shortcuts: Ctrl+K, Ctrl+F, or / (when not typing)
+      if (
+        (cmdOrCtrl && (key.toLowerCase() === "k" || key.toLowerCase() === "f")) ||
+        (!isInput && !cmdOrCtrl && !e.altKey && key === "/")
+      ) {
         e.preventDefault();
         const searchInput = document.getElementById("global-search-input") as HTMLInputElement | null;
         if (searchInput) {
@@ -84,7 +106,25 @@ export function useKeyboardShortcuts() {
         return;
       }
 
-      // 3. New Download Shortcut: Ctrl+N or Alt+N or 'n' (when not typing)
+      // 3. Clear Search Shortcut: Alt+C
+      if (e.altKey && !cmdOrCtrl && key.toLowerCase() === "c") {
+        e.preventDefault();
+        setGlobalFilter("");
+        return;
+      }
+
+      // 4. Help Cheat Sheet Shortcut: ? (Shift+/), Ctrl+/, or F1
+      if (
+        (cmdOrCtrl && key === "/") ||
+        key === "F1" ||
+        (!isInput && (key === "?" || (e.shiftKey && key === "/")))
+      ) {
+        e.preventDefault();
+        setShortcutsHelpOpen(!isShortcutsHelpOpen);
+        return;
+      }
+
+      // 5. New Download Shortcut: Ctrl+N, Alt+N, or 'n' (when not typing)
       if (
         (cmdOrCtrl && key.toLowerCase() === "n") ||
         (e.altKey && key.toLowerCase() === "n") ||
@@ -95,34 +135,41 @@ export function useKeyboardShortcuts() {
         return;
       }
 
-      // 4. Help Cheat Sheet Shortcut: ? (Shift+/) or Ctrl+/
-      if ((cmdOrCtrl && key === "/") || (!isInput && (key === "?" || (e.shiftKey && key === "/")))) {
-        e.preventDefault();
-        setShortcutsHelpOpen(!isShortcutsHelpOpen);
-        return;
-      }
-
-      // 5. Settings Shortcut: Ctrl+, or Alt+S
+      // 6. Settings Shortcut: Ctrl+, or Alt+S
       if ((cmdOrCtrl && key === ",") || (e.altKey && key.toLowerCase() === "s")) {
         e.preventDefault();
         setSettingsOpen(!isSettingsOpen);
         return;
       }
 
-      // 6. Navigation Shortcuts (Alt+H, Alt+D, Alt+W, Alt+P, Alt+A, Alt+M, Alt+V, Alt+T, Alt+R)
+      // 7. Storage Manager Shortcut: Ctrl+Shift+M or Alt+M
+      if (
+        (cmdOrCtrl && e.shiftKey && key.toLowerCase() === "m") ||
+        (e.altKey && !cmdOrCtrl && key.toLowerCase() === "m")
+      ) {
+        e.preventDefault();
+        setStorageManagerOpen(!isStorageManagerOpen);
+        return;
+      }
+
+      // 8. Navigation & Actions via Alt Key (Alt+1..5, Alt+H, Alt+D, Alt+W, Alt+P, Alt+U, Alt+A, Alt+V, Alt+T, Alt+R)
       if (e.altKey && !cmdOrCtrl) {
         const lower = key.toLowerCase();
-        if (lower === "h" || lower === "d") {
+
+        // 1 / H / D -> Home
+        if (key === "1" || lower === "h" || lower === "d") {
           e.preventDefault();
           navigate("/");
           return;
         }
-        if (lower === "w") {
+        // 2 / W -> Watch Later
+        if (key === "2" || lower === "w") {
           e.preventDefault();
           navigate("/watch_later");
           return;
         }
-        if (lower === "p") {
+        // 3 / P -> Playlists
+        if (key === "3" || lower === "p") {
           e.preventDefault();
           if (location.pathname === "/playlists") {
             setPlaylistManagerOpen(!isPlaylistManagerOpen);
@@ -131,33 +178,31 @@ export function useKeyboardShortcuts() {
           }
           return;
         }
-        if (lower === "a" && user?.role === "admin") {
+        // 4 / U -> Toast Studio
+        if (key === "4" || lower === "u") {
+          e.preventDefault();
+          navigate("/toast-studio");
+          return;
+        }
+        // 5 / A -> Admin
+        if ((key === "5" || lower === "a") && user?.role === "admin") {
           e.preventDefault();
           setAdminOpen(!isAdminOpen);
           return;
         }
-        if (lower === "m") {
-          e.preventDefault();
-          setStorageManagerOpen(!isStorageManagerOpen);
-          return;
-        }
+        // V -> Toggle View
         if (lower === "v") {
           e.preventDefault();
           setViewMode(viewMode === "grid" ? "table" : "grid");
           return;
         }
+        // T -> Toggle Theme
         if (lower === "t") {
           e.preventDefault();
-          const isDark = document.documentElement.classList.contains("dark");
-          if (isDark) {
-            document.documentElement.classList.remove("dark");
-            localStorage.setItem("theme", "light");
-          } else {
-            document.documentElement.classList.add("dark");
-            localStorage.setItem("theme", "dark");
-          }
+          toggleTheme();
           return;
         }
+        // R -> Refresh Data
         if (lower === "r") {
           e.preventDefault();
           fetchVideos();
@@ -166,11 +211,68 @@ export function useKeyboardShortcuts() {
         }
       }
 
-      // 7. Non-Input Quick Single-Key Toggles
-      if (!isInput && !cmdOrCtrl && !e.altKey) {
-        if (key.toLowerCase() === "v") {
+      // 9. Single-Key Global Shortcuts (when NOT typing in input/textarea)
+      if (!isInput && !cmdOrCtrl && !e.altKey && !e.metaKey) {
+        const lower = key.toLowerCase();
+
+        // Quick View Switch: 'v'
+        if (lower === "v") {
           e.preventDefault();
           setViewMode(viewMode === "grid" ? "table" : "grid");
+          return;
+        }
+
+        // Quick Theme Switch: 't' or 'd'
+        if (lower === "t" || lower === "d") {
+          e.preventDefault();
+          toggleTheme();
+          return;
+        }
+
+        // Quick Refresh: 'r'
+        if (lower === "r") {
+          e.preventDefault();
+          fetchVideos();
+          fetchPlaylists();
+          return;
+        }
+
+        // Number Key Navigation (1: Home, 2: Watch Later, 3: Playlists, 4: Toast Studio, 5: Admin)
+        if (key === "1") {
+          e.preventDefault();
+          navigate("/");
+          return;
+        }
+        if (key === "2") {
+          e.preventDefault();
+          navigate("/watch_later");
+          return;
+        }
+        if (key === "3") {
+          e.preventDefault();
+          navigate("/playlists");
+          return;
+        }
+        if (key === "4") {
+          e.preventDefault();
+          navigate("/toast-studio");
+          return;
+        }
+        if (key === "5" && user?.role === "admin") {
+          e.preventDefault();
+          setAdminOpen(!isAdminOpen);
+          return;
+        }
+
+        // Smooth Page Scrolling: Home & End
+        if (key === "Home") {
+          e.preventDefault();
+          window.scrollTo({ top: 0, behavior: "smooth" });
+          return;
+        }
+        if (key === "End") {
+          e.preventDefault();
+          window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
           return;
         }
       }
@@ -183,6 +285,8 @@ export function useKeyboardShortcuts() {
     user,
     viewMode,
     setViewMode,
+    globalFilter,
+    setGlobalFilter,
     fetchVideos,
     fetchPlaylists,
     navigate,
@@ -201,3 +305,4 @@ export function useKeyboardShortcuts() {
     setShortcutsHelpOpen,
   ]);
 }
+

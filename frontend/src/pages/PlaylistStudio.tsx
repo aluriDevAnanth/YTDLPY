@@ -9,9 +9,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import useAppStore from "src/store/useAppStore";
 import type { PlaylistT } from "src/schema";
-import { pt } from "src/pt";
-import { Dialog } from "primereact/dialog";
-import { FloatLabel } from "primereact/floatlabel";
+import CreatePlaylistDialog from "./components/playlist/dialog/CreatePlaylistDialog";
 
 export default function PlaylistStudio() {
   const playlists = useAppStore((state) => state.playlists);
@@ -168,50 +166,16 @@ export default function PlaylistStudio() {
 
   return (
     <div className="w-full flex flex-col gap-5 pt-2 mx-auto font-sans">
-      <Dialog
+      <CreatePlaylistDialog
         visible={showNewPlaylist}
         onHide={() => setShowNewPlaylist(false)}
-        pt={{
-          ...pt.dialog,
-          root: { className: "" },
-        }}
-        header="Create Playlist"
-        className="h-[30vh] w-[75vw]"
-      >
-        <div className="flex flex-1 flex-col pt-5 gap-3  bg-transperent  rounded-2xl shadow-sm mb-2">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <FloatLabel>
-              <InputText
-                value={name}
-                id="playlisttitle"
-                onChange={(e) => setName(e.target.value)}
-                className="w-full text-xs sm:text-sm bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-800 focus:border-cyan-500 rounded-xl"
-              />
-              <label htmlFor="playlisttitle">Playlist Title</label>
-            </FloatLabel>
-            <FloatLabel>
-              <InputText
-                value={description}
-                id="playlistdesc"
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full text-xs sm:text-sm bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-800 focus:border-cyan-500 rounded-xl"
-              />
-              <label htmlFor="playlistdesc">Playlist Description</label>
-            </FloatLabel>
-          </div>
-        </div>
-        <div className="flex shrink-0 justify-end my-2">
-          <Button
-            label="Create Playlist"
-            severity="success"
-            size="small"
-            onClick={handleCreate}
-            disabled={!name.trim() || loading}
-            icon={<Icon icon="tabler:plus" className="mr-1 text-base" />}
-            className="self-end text-xs font-bold px-5 py-2"
-          />
-        </div>
-      </Dialog>
+        name={name}
+        setName={setName}
+        description={description}
+        setDescription={setDescription}
+        loading={loading}
+        onSubmit={handleCreate}
+      />
 
       {/* DataTable Container Card */}
       <div className="flex flex-col gap-3 p-2 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm">
