@@ -1,29 +1,20 @@
 import axios from "axios";
-import { Button } from "primereact/button";
-import { Column } from "primereact/column";
-import { DataTable } from "primereact/datatable";
 import { Dialog } from "primereact/dialog";
-import { Dropdown } from "primereact/dropdown";
-import { InputText } from "primereact/inputtext";
-import { Tag } from "primereact/tag";
 import { Toast } from "primereact/toast";
 import { useEffect, useRef, useState } from "react";
 import { useAuthStore, type User } from "../../context/authStore";
+import { CreateUserDialog, UserManagementTable } from "./admin";
+
 const API_BASE = import.meta.env.VITE_SOCKET_URL || "http://localhost:8000";
-const roleOptions = [
-  { label: "User", value: "user" },
-  { label: "Administrator", value: "admin" },
-];
-export default function AdminDialog() {
+
+export function AdminDialog() {
   const { isAdminOpen, setAdminOpen, user: currentUser } = useAuthStore();
   const toast = useRef<Toast>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newUsername, setNewUsername] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [newRole, setNewRole] = useState<"admin" | "user">("user");
   const [creating, setCreating] = useState(false);
+
   const fetchUsers = async () => {
     setLoading(true);
     try {
@@ -40,27 +31,30 @@ export default function AdminDialog() {
       setLoading(false);
     }
   };
+
   useEffect(() => {
     if (isAdminOpen) {
       fetchUsers();
     }
   }, [isAdminOpen]);
-  const handleCreateUser = async (e: React.FormEvent) => {
-    e.preventDefault();
+
+  const handleCreateUser = async (
+    username: string,
+    password: string,
+    role: "admin" | "user",
+  ) => {
     setCreating(true);
     try {
       await axios.post(`${API_BASE}/api/admin/users`, {
-        username: newUsername,
-        password: newPassword,
-        role: newRole,
+        username,
+        password,
+        role,
       });
       toast.current?.show({
         severity: "success",
         summary: "User Created",
-        detail: `User ${newUsername} added successfully`,
+        detail: `User ${username} added successfully`,
       });
-      setNewUsername("");
-      setNewPassword("");
       setShowAddModal(false);
       fetchUsers();
     } catch (err: any) {
@@ -73,6 +67,7 @@ export default function AdminDialog() {
       setCreating(false);
     }
   };
+
   const handleDeleteUser = async (targetUser: User) => {
     if (targetUser.id === currentUser?.id) {
       toast.current?.show({
@@ -105,6 +100,7 @@ export default function AdminDialog() {
       });
     }
   };
+
   return (
     <Dialog
       header="System User Administration"
@@ -114,106 +110,25 @@ export default function AdminDialog() {
       dismissableMask
     >
       <Toast ref={toast} />
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">User Accounts & RBAC Roles</h3>
-        <Button
-          label="Add User"
-          icon="pi pi-user-plus"
-          severity="success"
-          onClick={() => setShowAddModal(true)}
-        />
-      </div>
-      <DataTable
-        value={users}
+
+      <UserManagementTable
+        users={users}
         loading={loading}
-        stripedRows
-        size="small"
-        showGridlines
-      >
-        <Column field="username" header="Username" sortable />
-        <Column
-          field="role"
-          header="Role"
-          body={(row: User) => (
-            <Tag
-              value={row.role.toUpperCase()}
-              severity={row.role === "admin" ? "danger" : "info"}
-            />
-          )}
-        />
-        <Column
-          field="created_at"
-          header="Created At"
-          body={(row: User) => new Date(row.created_at).toLocaleDateString()}
-        />
-        <Column
-          header="Actions"
-          body={(row: User) => (
-            <Button
-              icon="pi pi-trash"
-              severity="danger"
-              outlined
-              className="p-button-sm py-1 px-2"
-              disabled={row.id === currentUser?.id}
-              onClick={() => handleDeleteUser(row)}
-            />
-          )}
-        />
-      </DataTable>
-      {}
+        currentUser={currentUser}
+        onAddUserClick={() => setShowAddModal(true)}
+        onDeleteUser={handleDeleteUser}
+      />
+
       {showAddModal && (
-        <Dialog
-          header="Create User Account"
+        <CreateUserDialog
           visible={showAddModal}
           onHide={() => setShowAddModal(false)}
-          style={{ width: "95vw", maxWidth: "400px" }}
-          dismissableMask
-        >
-          <form
-            onSubmit={handleCreateUser}
-            className="flex flex-col gap-4 py-2"
-          >
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Username</label>
-              <InputText
-                value={newUsername}
-                onChange={(e) => setNewUsername(e.target.value)}
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Password</label>
-              <InputText
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Role</label>
-              <Dropdown
-                value={newRole}
-                options={roleOptions}
-                onChange={(e) => setNewRole(e.value)}
-              />
-            </div>
-            <div className="flex justify-end gap-2 mt-3 pt-2 border-t border-gray-200 dark:border-gray-700/50">
-              <Button
-                label="Cancel"
-                severity="secondary"
-                onClick={() => setShowAddModal(false)}
-              />
-              <Button
-                label="Create"
-                icon="pi pi-check"
-                loading={creating}
-                type="submit"
-              />
-            </div>
-          </form>
-        </Dialog>
+          onSubmit={handleCreateUser}
+          loading={creating}
+        />
       )}
     </Dialog>
   );
 }
+
+export default AdminDialog;
